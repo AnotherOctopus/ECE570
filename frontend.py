@@ -14,8 +14,8 @@ train_data_dir = "data/detect12/train"
 validation_data_dir = "data/detect12/validation"
 nb_train_samples = len(os.listdir(train_data_dir +"/face")) + len(os.listdir(train_data_dir +"/notface"))
 nb_validation_samples = len(os.listdir(validation_data_dir +"/face")) + len(os.listdir(validation_data_dir +"/notface"))
-n_epochs = 50
-batch_size = 10
+n_epochs = 30
+batch_size = 1000
 
 
 if __name__ == "__main__":

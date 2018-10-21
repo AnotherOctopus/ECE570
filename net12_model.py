@@ -15,9 +15,9 @@ class detect12(object):
                 model.add(MaxPooling2D(pool_size=(3, 3),strides=2))
 
                 model.add(Flatten())
-                model.add(Dense(128))
+                model.add(Dense(16))
                 model.add(Activation("relu"))
-                model.add(Dense(45))
+                model.add(Dense(1))
                 model.add(Activation("relu"))
                 self.model = model
         def compile(self):
