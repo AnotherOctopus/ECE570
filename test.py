@@ -3,60 +3,82 @@ from PIL import Image
 import numpy as np
 import cv2
 from scipy.misc import imread, imsave
+from skimage.transform import pyramid_gaussian
+from net12_model import  calib12, detect12
+from config import *
 
-# returns a compiled model
-# identical to the previous one
-def runframe(model,frame,wsize):
-        step = 4
-        print frame.shape
-        maxX = frame.shape[1]
-        maxY = frame.shape[2]
-        data = np.empty((frame.shape[0],int((maxX-wsize)/step)+1,int((maxY-wsize)/step)+1))
-        for xi,x in enumerate(range(wsize/2,maxX - wsize/2,step)):
-                for yi,y in enumerate(range(wsize/2,maxY - wsize/2,step)):
-                        lowwindx = x - wsize/2
-                        lowwindy = y - wsize/2
-                        maxwindx = x + wsize/2
-                        maxwindy = y + wsize/2
-                        print (data.shape)
-                        print (xi,yi)
-                        print (x,y)
-                        print (lowwindx,lowwindy,maxwindx,maxwindy)
-                        data[:,xi,yi] = model.predict(frame[:,lowwindx:maxwindx,lowwindy:maxwindy,:]).reshape(99)
-        return data
-"""
-testfile = [
-        "/home/cephalopodoverlord/DroneProject/Charles570/ECE570/data/detect12/train/face/118.jpg",
-        "/home/cephalopodoverlord/DroneProject/Charles570/ECE570/data/detect12/train/notface/41.jpg"
-]
-model = load_model('first_try.h5')
-for fi in testfile:
-        img = imread(fi)
-        img = img[np.newaxis,...]
-        print model.predict(img)
-"""
-if __name__ == "__main__":
-        testfile = "/home/cephalopodoverlord/DroneProject/Charles570/ECE570/data/test/bill_gates_0017.jpg"
-        model = load_model('first_try.h5')
-        rawimg = imread(testfile,mode='RGB')
-        cv2.imshow("image",rawimg)
-        minscale = 0.01
-        scalestep = 0.01
-        scale = 1
-        i = 0
-        X = rawimg.shape[0]
-        Y = rawimg.shape[1]
-        data = np.empty((int((scale-minscale)/scalestep), X,Y,3 ))
-        while scale > minscale:
-                img = rawimg.copy()
-                img.resize((int(X*scale),int(Y*scale),3))
-                img = np.pad(img,((0,X-img.shape[0]),(0,Y-img.shape[1]),(0,0)),'constant' )
-                data[i,:,:,:] = img
-                i+=1
-                scale -= scalestep
-                k = cv2.waitKey(30) & 0xff
-                if k == 27:
-                        break
+def NMS(boxes):
 
-        confidence = runframe(model,data,12)
-        np.save("confidence.npy",confidence)
+        for i, box in enumerate(boxes[:-1]):
+                def IOU(boxA):
+                        boxB =  box[1:]
+                        ## Borrowed from Pyimagesearch
+                        #determine the (x, y)-coordinates of the intersection rectangle
+                        xA = max(boxA[0], boxB[0])
+                        yA = max(boxA[1], boxB[1])
+                        xB = min(boxA[2], boxB[2])
+                        yB = min(boxA[3], boxB[3])
+                        print (xA,yA,xB,yB)
+                
+                        # compute the area of intersection rectangle
+                        interArea = max(0, xB - xA ) * max(0, yB - yA )
+                        print interArea
+                
+                        # compute the area of both the prediction and ground-truth
+                        # rectangles
+                        boxAArea = (boxA[2] - boxA[0] ) * (boxA[3] - boxA[1] )
+                        boxBArea = (boxB[2] - boxB[0] ) * (boxB[3] - boxB[1] )
+                        print boxAArea, boxBArea
+                
+                        # compute the intersection over union by taking the intersection
+                        # area and dividing it by the sum of prediction + ground-truth
+                        # areas - the interesection area
+                        iou = interArea / float(boxAArea + boxBArea - interArea)
+                
+                        # return the intersection over union value
+                        return iou
+                ious = np.apply_along_axis(IOU,1,boxes[i+1:,1:])
+                print "CHECK HEAR"
+                print box[1:]
+                print boxes[i+1:,1:]
+                print ious
+        return boxes
+NMS(np.asarray([[0.1,1,1,3,3],[0.1,2,0,4,2]]))
+sys
+def testcalib12():
+        c12 = calib12()
+        testfile = "/home/cephalopodoverlord/DroneProject/Charles570/ECE570/data/adj12/train/face/1.jpg"
+        validfile = "/home/cephalopodoverlord/DroneProject/Charles570/ECE570/data/adj12/train/tag/1.txt"
+        model = load_model('calib12.h5')
+        rawimg = imread(testfile,mode='RGB').astype(np.float32)/255
+        rawimg = rawimg[np.newaxis,...]
+        predictions =  model.predict(rawimg)
+
+        for prediction in predictions:
+                totS = 0
+                totY = 0
+                totX = 0
+                Z = np.sum(prediction > calib12Tresh)
+                for pred,aclass in zip(prediction,adjclass):
+                        if pred > calib12Tresh:
+                                calib = adjclassV[adjclass.index(aclass)]
+                                totS += calib[0]
+                                totX += calib[1]
+                                totY += calib[2]
+                totS /= Z
+                totX /= Z
+                totY /= Z
+
+        print "ACTUAL", adjclassV[tag]
+        print "Predic", totS, totX, totY
+def testdetect12():
+        d12 = detect12()
+        testfile = "/home/cephalopodoverlord/DroneProject/Charles570/ECE570/data/detect12/train/notface/8.jpg"
+        model = load_model('net12.h5')
+        rawimg = imread(testfile,mode='RGB').astype(np.float32)/255
+        rawimg = rawimg[np.newaxis,...]
+        predictions =  model.predict(rawimg)
+
+
+        print predictions
+testcalib12()

@@ -49,7 +49,7 @@ def displaybb(boundbox):
         cv2.imshow(image)
         cv2.waitKey(30)
 
-def prepdetect12(numface,numback,trainvalidratio=10):
+def prepdetect12(numface,trainvalidratio=10):
         traindir = datadir + "detect12/train/"
         validdir = datadir + "detect12/validation/"
         tagcsv = datasetdir + "umdfaces_batch1/umdfaces_batch1_ultraface.csv"
@@ -58,7 +58,7 @@ def prepdetect12(numface,numback,trainvalidratio=10):
 
         lengthofcsv = len(data)
         for i in range(numface):
-                position = random.randrange(0, lengthofcsv)
+                position = random.randrange(1, lengthofcsv)
                 face = umdcsvtobb(data[position])
                 img = Image.open(face['filename'])
                 area = (face['xpos'],
@@ -74,6 +74,9 @@ def prepdetect12(numface,numback,trainvalidratio=10):
                 img.save(face['filename'])
                 print("12detect-face",face)
 
+def prepbackground(numback,trainvalidratio=10):
+        traindir = datadir + "detect12/train/"
+        validdir = datadir + "detect12/validation/"
         backgroundfeeddir = datasetdir + "classroombackround/"
         bkgroundimgs = os.listdir(backgroundfeeddir)
         picnum = 0
@@ -104,8 +107,8 @@ def perterb(BB):
         newBB = {}
         newBB["id"] = BB["id"]
         newBB["filename"] = BB["filename"]
-        newBB["xpos"] = BB["xpos"] - xi
-        newBB["ypos"] = BB["ypos"] - yi
+        newBB["xpos"] = BB["xpos"] - xi*BB["w"]/si
+        newBB["ypos"] = BB["ypos"] - yi*BB["h"]/si
         newBB["w"] = BB["w"]/si
         newBB["h"] = BB["h"]/si
         return newBB,(si,xi,yi)
@@ -119,7 +122,7 @@ def prepcalib12(numface,trainvalidratio=10):
 
         lengthofcsv = len(data)
         for i in range(numface):
-                position = random.randrange(0, lengthofcsv)
+                position = random.randrange(1, lengthofcsv)
                 face = umdcsvtobb(data[position])
                 face,pert = perterb(face)
                 img = Image.open(face['filename'])
@@ -140,5 +143,6 @@ def prepcalib12(numface,trainvalidratio=10):
                 print("12calib: ",face)
                 
 if __name__ == "__main__":
-        prepcalib12(2000)
-        prepdetect12(10000,10000)
+        #prepdetect12(6000,trainvalidratio=3)
+        prepbackground(4000)
+        #prepcalib12(45*1100)

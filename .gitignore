@@ -3,3 +3,4 @@ datasets/
 *.npy
 *.h5
 *.pyc
+venv/
