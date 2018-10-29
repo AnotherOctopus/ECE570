@@ -4,7 +4,7 @@ import numpy as np
 import cv2
 from scipy.misc import imread, imsave
 from skimage.transform import pyramid_gaussian
-from net12_model import  calib12, detect12
+from net12_model import  calib12, detect12,detect48
 from config import *
 
 def NMS(boxes):
@@ -43,13 +43,37 @@ def NMS(boxes):
                 print boxes[i+1:,1:]
                 print ious
         return boxes
-NMS(np.asarray([[0.1,1,1,3,3],[0.1,2,0,4,2]]))
-sys
 def testcalib12():
         c12 = calib12()
         testfile = "/home/cephalopodoverlord/DroneProject/Charles570/ECE570/data/adj12/train/face/1.jpg"
         validfile = "/home/cephalopodoverlord/DroneProject/Charles570/ECE570/data/adj12/train/tag/1.txt"
         model = load_model('calib12.h5')
+        rawimg = imread(testfile,mode='RGB').astype(np.float32)/255
+        rawimg = rawimg[np.newaxis,...]
+        predictions =  model.predict(rawimg)
+
+        for prediction in predictions:
+                totS = 0
+                totY = 0
+                totX = 0
+                Z = np.sum(prediction > calib12Tresh)
+                for pred,aclass in zip(prediction,adjclass):
+                        if pred > calib12Tresh:
+                                calib = adjclassV[adjclass.index(aclass)]
+                                totS += calib[0]
+                                totX += calib[1]
+                                totY += calib[2]
+                totS /= Z
+                totX /= Z
+                totY /= Z
+
+        print "ACTUAL", adjclassV[tag]
+        print "Predic", totS, totX, totY
+def testcalib48():
+        c12 = calib12()
+        testfile = "/home/cephalopodoverlord/DroneProject/Charles570/ECE570/data/adj48/train/face/1.jpg"
+        validfile = "/home/cephalopodoverlord/DroneProject/Charles570/ECE570/data/adj48/train/tag/1.txt"
+        model = load_model('calib48.h5')
         rawimg = imread(testfile,mode='RGB').astype(np.float32)/255
         rawimg = rawimg[np.newaxis,...]
         predictions =  model.predict(rawimg)
@@ -81,4 +105,37 @@ def testdetect12():
 
 
         print predictions
-testcalib12()
+def testdetect24():
+        d12 = detect24()
+        testfile = "/home/cephalopodoverlord/DroneProject/Charles570/ECE570/data/detect24/train/face/3.jpg"
+        model = load_model('detect24.h5')
+        rawimg = imread(testfile,mode='RGB').astype(np.float32)/255
+        rawimg = rawimg[np.newaxis,...]
+        wind12 = Image.fromarray(np.uint8(imread(testfile,mode='RGB')*255)).resize((L1Size,L1Size))
+        wind12 = np.asarray(wind12).astype(np.float32)/255
+        wind12 = np.reshape(wind12,(1,L1Size,L1Size,3))
+        predictions =  model.predict([rawimg,wind12])
+
+
+        print predictions
+def testdetect48():
+        d12 = detect48()
+        testfile = "/home/cephalopodoverlord/DroneProject/Charles570/ECE570/data/detect48/train/face/101.jpg"
+        model = load_model('detect48.h5')
+        rawimg = imread(testfile,mode='RGB').astype(np.float32)/255
+        rawimg = rawimg[np.newaxis,...]
+
+        wind24 = Image.fromarray(np.uint8(imread(testfile,mode='RGB')*255)).resize((L2Size,L2Size))
+        wind24 = np.asarray(wind24).astype(np.float32)/255
+        wind24 = np.reshape(wind24,(1,L2Size,L2Size,3))
+
+        wind12 = Image.fromarray(np.uint8(imread(testfile,mode='RGB')*255)).resize((L1Size,L1Size))
+        wind12 = np.asarray(wind12).astype(np.float32)/255
+        wind12 = np.reshape(wind12,(1,L1Size,L1Size,3))
+
+        predictions =  model.predict([rawimg, wind24, wind12])
+
+
+        print predictions
+#testcalib12()
+testdetect48()
