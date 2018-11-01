@@ -59,8 +59,8 @@ def prepdetect(numface,datadir,trainvalidratio=10,size = 12):
                 data = list(csv.reader(csvfile))    
 
         lengthofcsv = len(data)
-        for i in range(numface):
-                position = random.randrange(1, lengthofcsv)
+        for i in range(1,numface):
+                position = i
                 face = umdcsvtobb(data[position])
                 img = Image.open(face['filename'])
                 area = (face['xpos'],
@@ -146,10 +146,11 @@ def prepcalib(numface,datadir, trainvalidratio=10,size=12):
                 print(size,"calib: ",face)
                 
 if __name__ == "__main__":
-        prepdetect(3000,"data/detect48/",trainvalidratio = 4,size = 48)
+        prepdetect(20000,"data/detect48/",trainvalidratio = 4,size = 48)
+        prepdetect(20000,"data/detect24/",trainvalidratio = 4,size = 24)
+        prepdetect(20000,"data/detect12/",trainvalidratio = 4,size = 12)
+        prepbackground(15000,"data/detect48/",trainvalidratio = 4,size = 48)
+        prepbackground(15000,"data/detect24/",trainvalidratio = 4,size = 24)
+        prepbackground(15000,"data/detect12/",trainvalidratio = 4,size = 12)
         #prepcalib(45*1100,"data/adj48/",size=48)
-        #prepdetect(6000,"data/detect24/",trainvalidratio=4,size = 24)
-        #prepdetect(6000,"data/detect12/",trainvalidratio=3,size = 12)
-        #prepbackground(4000,"data/detect48/",trainvalidratio=4,size = 48)
-        #prepbackground(20000,"data/detect48/",trainvalidratio=4,size = 48)
         #prepcalib(45*1100,"data/adj24/",size=24)
