@@ -1,9 +1,8 @@
 from keras.models import load_model
-from PIL import Image
 import numpy as np
 import cv2
 from scipy.misc import imread, imsave
-from skimage.transform import pyramid_gaussian
+from skimage.transform import pyramid_gaussian, pyramid_reduce
 from config import *
 import sys
 from utils import *
@@ -12,7 +11,7 @@ from utils import *
 if __name__ == "__main__":
         sw = Stopwatch()
         # File we are running on
-        testfile = "/home/cephalopodoverlord/Downloads/gettyimages-493747754-612x612.jpg"
+        testfile = "/home/cephalopodoverlord/DroneProject/Charles570/ECE570/datasets/myfaceinback.JPG"
 
         # Instantiate all the models
         detect12model = load_model('net12.h5')
@@ -24,16 +23,11 @@ if __name__ == "__main__":
 
         sw.start("load image and scale")
         # Load image. Raw and batch variant
-        rawimg = imread(testfile,mode='RGB')
-        print rawimg.shape
-        rawimg = Image.fromarray(np.uint8(rawimg*255)).resize((int(rawimg.shape[1] * L1SIZE/float(MINFACE)), int(rawimg.shape[0]*L1SIZE/float(MINFACE))))
-        print rawimg.size
-        rawimg.show()
-        rawimg = np.asarray(rawimg).astype(np.float32)/255
-        print rawimg.shape
+        rawimg = imread(testfile,mode='RGB').astype(np.float32)/255
+        rawimg = pyramid_reduce(rawimg,downscale=float(MINFACE)/L1SIZE)
 
         # Generate a Downscaled variant of the image, down to 12x12 img
-        scalestep = 1.5
+        scalestep = 1.2
         imgpyr = tuple(pyramid_gaussian(rawimg,downscale =scalestep))
 
         sw.lap("12net detect")
@@ -52,7 +46,7 @@ if __name__ == "__main__":
                         break
                 confidence["confmap"] =  runframe(detect12model,brawimg,L1SIZE)
                 confidence["scale"] =  float(rawimg.shape[0])/frame.shape[0]
-                confToPos = lambda x: (L1SIZE/2 + x*STEP)
+                confToPos = lambda x: (x*STEP)
 
                 threshedboxes = (confidence["confmap"] < DETECT12THRESH).nonzero()
                 confidence["boxes"] = np.zeros((len(threshedboxes[0]),5),dtype=np.uint32)
@@ -60,9 +54,9 @@ if __name__ == "__main__":
                         xidx = threshedboxes[0][i]
                         yidx = threshedboxes[1][i]
                         conf = int(confidence['confmap'][xidx][yidx]*MAXCONF)
-                        X = confToPos(xidx)
-                        Y = confToPos(yidx)
-                        confidence["boxes"][i] = np.asarray([conf,int(X-L1SIZE/2),int(Y-L1SIZE/2),int(X+L1SIZE/2),int(Y+L1SIZE/2)])
+                        X = int(confToPos(xidx))
+                        Y = int(confToPos(yidx))
+                        confidence["boxes"][i] = np.asarray([conf,X,Y,X+L1SIZE,Y+L1SIZE])
                 confidence["boxes"]  = confidence["boxes"][confidence["boxes"][:,0].argsort()]
                 confidences.append(confidence)
         sw.lap("12net calib")
@@ -73,10 +67,9 @@ if __name__ == "__main__":
         sw.lap("12net nms")
         for confidence in confidences:
                 confidence["boxes"] = NMS(confidence["boxes"])
-
+        drawall("12net",rawimg,confidences)
 
         sw.lap("24net detect")
-        drawall("Post12 - postshift, postnms",rawimg,confidences)
         for confidence in confidences:
                 scale = confidence["scale"]
                 numremoved = 0
@@ -97,7 +90,6 @@ if __name__ == "__main__":
                         continue
                 confidence["boxes"] = confidence["boxes"][confidence["boxes"][:,0].argsort()]
                 confidence["boxes"] = confidence["boxes"][:-numremoved]
-        drawall("Post24 - preshift, prenms",rawimg,confidences)
         sw.lap("24net calib")
         for confidence in confidences:
                 scale = confidence["scale"]
@@ -109,11 +101,9 @@ if __name__ == "__main__":
                         wind = resizetoshape(rawimg[X1:X2,Y1:Y2,:],(L2SIZE,L2SIZE))
                         shift = calib24model.predict(wind)[0]
                         confidence["boxes"][idx] = adjBB(box,predToShift(shift,thresh = CALIB24THRESH))
-        drawall("Post24 - postshift, prenms",rawimg,confidences)
         sw.lap("24net nms")
         for confidence in confidences:
                 confidence["boxes"] = NMS(confidence["boxes"])
-        drawall("Post24 - postshift, postnms",rawimg,confidences)
         sw.lap("48net detect")
         for confidence in confidences:
                 scale = confidence["scale"]
@@ -140,12 +130,10 @@ if __name__ == "__main__":
                         continue
                 confidence["boxes"] = confidence["boxes"][confidence["boxes"][:,0].argsort()]
                 confidence["boxes"] = confidence["boxes"][:-numremoved]
-        drawall("Post48 - Preshift, pre combined",rawimg,confidences,scaleup=False)
         combinedBoxes = np.concatenate([b["boxes"] for b in confidences])
-        drawfinal("Post48 - Preshift, Pre nms",rawimg,combinedBoxes)
+        combinedBoxes = combinedBoxes[combinedBoxes[:,0].argsort()]
         sw.lap("48net NMS")
         combinedBoxes = NMS(combinedBoxes)
-        drawfinal("Post48 - Preshift, post nms",rawimg,combinedBoxes)
 
         sw.lap("48net calib")
         for idx, box in enumerate(combinedBoxes):

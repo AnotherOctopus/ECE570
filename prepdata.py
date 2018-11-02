@@ -1,17 +1,17 @@
 import csv
-from PIL import Image
 import random
 import os
 import cv2
+from scipy.misc import imread,imsave
+from skimage.transform import pyramid_reduce
+from config import *
+
 datasetdir = "datasets/"
 #calibration perterbations
-sn = [0.83,0.91,1.0,1.1,1.21]
-xn = [-0.17,0,0.17]
-yn = [-0.17,0,0.17]
 import time
 timestamp = int(time.time())
 random.seed(timestamp)
-def umdcsvtobb(datapoint):
+def umdcsvtobb(ident,datapoint):
         ret = {
                 "id":0,
                 "filename":"",
@@ -20,14 +20,14 @@ def umdcsvtobb(datapoint):
                 "w":0,
                 "h":0
               }
-        ret["id"] = int(datapoint[0])
+        ret["id"] = ident
         ret["filename"] = os.path.join(datasetdir,"umdfaces_batch1",datapoint[1])
         ret["xpos"] = float(datapoint[4])
         ret["ypos"] = float(datapoint[5])
         ret["w"] = float(datapoint[6])
         ret["h"] = float(datapoint[7])
         return ret
-def randombb(imagesize):
+def randombb(imagesize,window):
         ret = {
                 "id":0,
                 "filename":"",
@@ -40,8 +40,12 @@ def randombb(imagesize):
         ret["filename"] = "NULL"
         ret["xpos"] = random.uniform(0,imagesize[0])
         ret["ypos"] = random.uniform(0,imagesize[1])
-        ret["w"] = random.uniform(0, imagesize[0] - ret["xpos"])
-        ret["h"] = random.uniform(0, imagesize[1] - ret["ypos"])
+        while ret["xpos"] + window > imagesize[0] or ret["ypos"] + window > imagesize[1]:
+                ret["xpos"] = random.uniform(0,imagesize[0])
+                ret["ypos"] = random.uniform(0,imagesize[1])
+        size = random.uniform(window, imagesize[0] - max(ret["xpos"],ret["ypos"]))
+        ret["w"] = size
+        ret["h"] = size
         return ret
 def displaybb(boundbox):
         image = cv2.imread(os.path.join(datasetdir,"umdfaces_batch1",boundbox["filename"]))
@@ -51,7 +55,7 @@ def displaybb(boundbox):
         cv2.imshow(image)
         cv2.waitKey(30)
 
-def prepdetect(numface,datadir,trainvalidratio=10,size = 12):
+def prepdetect(numface,datadir,trainvalidratio=10,size = 12,startid=1):
         traindir = datadir + "train/"
         validdir = datadir + "validation/"
         tagcsv = datasetdir + "umdfaces_batch1/umdfaces_batch1_ultraface.csv"
@@ -59,50 +63,71 @@ def prepdetect(numface,datadir,trainvalidratio=10,size = 12):
                 data = list(csv.reader(csvfile))    
 
         lengthofcsv = len(data)
-        for i in range(1,numface):
-                position = i
-                face = umdcsvtobb(data[position])
-                img = Image.open(face['filename'])
-                area = (face['xpos'],
-                        face['ypos'], 
-                        face['xpos']+face['w'],
-                        face['ypos']+face['h'])
-                face['id'] += 3600
-                img = img.crop(area)
-                img = img.resize((size,size))
-                if face['id']%trainvalidratio == 0:
-                        face['filename'] = os.path.join(validdir,"face","{}.jpg".format(face['id']))
-                else:
-                        face['filename'] = os.path.join(traindir,"face","{}.jpg".format(face['id']))
-                img.save(face['filename'])
-                print(size,lengthofcsv,"detect-face",face)
+        for i in range(startid,numface + startid):
+                position = random.choice(data)
+                face = umdcsvtobb(i,position)
+                img = imread(face['filename'])
+                area = (int(face['xpos']),
+                        int(face['ypos']), 
+                        int(face['xpos']+face['w']),
+                        int(face['ypos']+face['h']))
 
-def prepbackground(numback,datadir,trainvalidratio=10,size = 12):
+                try:
+                        img = img[area[1]:area[3],area[0]:area[2],:]
+                        if face['w'] > face['h']:
+                                img = pyramid_reduce(img,downscale=face['h']/float(size))
+                                img = img[(img.shape[0]-size)/2:(img.shape[0]+size)/2 ,:,:]
+                        else:
+                                img = pyramid_reduce(img,downscale=face['w']/float(size))
+                                img = img[:,(img.shape[0]-size)/2:(img.shape[0]+size)/2,:]
+
+                        img = img[:size,:size,:]
+                        if face['id']%trainvalidratio == 0:
+                                face['filename'] = os.path.join(validdir,"face","{}.jpg".format(face['id']))
+                        else:
+                                face['filename'] = os.path.join(traindir,"face","{}.jpg".format(face['id']))
+                        imsave(face['filename'],img)
+                        print(size,lengthofcsv,"detect-face",face)
+                except:
+                        pass
+
+def prepbackground(numback,datadir,trainvalidratio=10,size = 12,startid = 0):
         traindir = datadir + "train/"
         validdir = datadir + "validation/"
         backgroundfeeddir = datasetdir + "classroombackround/"
         bkgroundimgs = os.listdir(backgroundfeeddir)
-        picnum = 0
-        for i in range(numback):
+        for i in range(startid,numback + startid):
                 backimg = bkgroundimgs[picnum%len(bkgroundimgs)]
-                img = Image.open(os.path.join(backgroundfeeddir,backimg))
-                notface = randombb(img.size)
-                notface['id'] = picnum
+                img = imread(os.path.join(backgroundfeeddir,backimg))
+                notface = randombb(img.shape,size)
+                notface['id'] = i
                 notface['filename'] = os.path.join(backgroundfeeddir,backimg)
-                area = (notface['xpos'],
-                        notface['ypos'], 
-                        notface['xpos']+notface['w'],
-                        notface['ypos']+notface['h'])
-                img = img.crop(area)
-                img = img.resize((size,size))
-                if notface['id']%trainvalidratio == 0:
-                        notface['filename'] = os.path.join(validdir,"notface","{}.jpg".format(notface['id']))
-                else:
-                        notface['filename'] = os.path.join(traindir,"notface","{}.jpg".format(notface['id']))
+                try:
+                        if size == 12:
+                                area = (int(notface['xpos']),
+                                        int(notface['ypos']), 
+                                        int(notface['xpos']+12),
+                                        int(notface['ypos']+12))
+                                img = img[area[1]:area[3],area[0]:area[2],:]
+                        else:
+                                area = (int(notface['xpos']),
+                                        int(notface['ypos']), 
+                                        int(notface['xpos']+notface['w']),
+                                        int(notface['ypos']+notface['h']))
+                                img = img[area[1]:area[3],area[0]:area[2],:]
+                                img = pyramid_reduce(img,downscale=notface['h']/float(size))
+                                img = img[:size,:size,:]
 
-                img.save(notface['filename'])
-                print(size,"detect-notface",notface)
-                picnum += 1
+                        if notface['id']%trainvalidratio == 0:
+                                notface['filename'] = os.path.join(validdir,"notface","{}.jpg".format(notface['id']))
+                        else:
+                                notface['filename'] = os.path.join(traindir,"notface","{}.jpg".format(notface['id']))
+
+                        print img.shape
+                        imsave(notface['filename'],img)
+                        print(size,"detect-notface",notface)
+                except:
+                        pass
 def perterb(BB):
         si = random.choice(sn)
         xi = random.choice(xn)
@@ -116,7 +141,7 @@ def perterb(BB):
         newBB["h"] = BB["h"]/si
         return newBB,(si,xi,yi)
 
-def prepcalib(numface,datadir, trainvalidratio=10,size=12):
+def prepcalib(numface, datadir, trainvalidratio=10,size=12,startid = 0):
         traindir = datadir + "train/"
         validdir = datadir + "validation/"
         tagcsv = datasetdir + "umdfaces_batch1/umdfaces_batch1_ultraface.csv"
@@ -124,33 +149,45 @@ def prepcalib(numface,datadir, trainvalidratio=10,size=12):
                 data = list(csv.reader(csvfile))    
 
         lengthofcsv = len(data)
-        for i in range(numface):
-                position = random.randrange(1, lengthofcsv)
-                face = umdcsvtobb(data[position])
-                face,pert = perterb(face)
-                img = Image.open(face['filename'])
-                area = (face['xpos'],
-                        face['ypos'], 
-                        face['xpos']+face['w'],
-                        face['ypos']+face['h'])
-                img = img.crop(area)
-                img = img.resize((size,size))
-                if face['id']%trainvalidratio == 0:
-                        savedir = validdir
-                else:
-                        savedir = traindir
-                face['filename'] = os.path.join(savedir,"face","{}.jpg".format(face['id']))
-                with open( os.path.join(savedir,"tag","{}.txt".format(face['id'])),"w+") as fh:
-                        fh.write(",".join(map(str,pert))) 
-                img.save(face['filename'])
-                print(size,"calib: ",face)
+        for i in range(startid,numface + startid):
+                try:
+                        position = random.randrange(1, lengthofcsv)
+                        face = umdcsvtobb(i,data[position])
+                        face,pert = perterb(face)
+                        img = imread(face['filename'])
+                        area = (int(face['xpos']),
+                                int(face['ypos']), 
+                                int(face['xpos']+face['w']),
+                                int(face['ypos']+face['h']))
+                        img = img[area[1]:area[3],area[0]:area[2],:]
+                        if face['w'] > face['h']:
+                                img = pyramid_reduce(img,downscale=face['h']/float(size))
+                                img = img[(img.shape[0]-size)/2:(img.shape[0]+size)/2 ,:,:]
+                        else:
+                                img = pyramid_reduce(img,downscale=face['w']/float(size))
+                                img = img[:,(img.shape[0]-size)/2:(img.shape[0]+size)/2,:]
+                        img = img[:size,:size,:]
+                        if face['id']%trainvalidratio == 0:
+                                savedir = validdir
+                        else:
+                                savedir = traindir
+                        if img.shape[0] != size or img.shape[1] != size:
+                                raise Exception("blah")
+                        face['filename'] = os.path.join(savedir,"face","{}.jpg".format(face['id']))
+                        with open( os.path.join(savedir,"tag","{}.txt".format(face['id'])),"w+") as fh:
+                                fh.write(",".join(map(str,pert))) 
+                        imsave(face['filename'],img)
+                        print(size,"calib: ",face)
+                except:
+                        pass
                 
 if __name__ == "__main__":
-        prepdetect(20000,"data/detect48/",trainvalidratio = 4,size = 48)
-        prepdetect(20000,"data/detect24/",trainvalidratio = 4,size = 24)
-        prepdetect(20000,"data/detect12/",trainvalidratio = 4,size = 12)
-        prepbackground(15000,"data/detect48/",trainvalidratio = 4,size = 48)
-        prepbackground(15000,"data/detect24/",trainvalidratio = 4,size = 24)
-        prepbackground(15000,"data/detect12/",trainvalidratio = 4,size = 12)
-        #prepcalib(45*1100,"data/adj48/",size=48)
-        #prepcalib(45*1100,"data/adj24/",size=24)
+        #prepdetect(20000,"data/detect48/",trainvalidratio = 4,size = 48)
+        #prepdetect(20000,"data/detect24/",trainvalidratio = 4,size = 24)
+        prepdetect(10000,"data/detect12/",trainvalidratio = 4,size = 12,startid=20000)
+        #prepbackground(15000,"data/detect48/",trainvalidratio = 4,size = 48)
+        #prepbackground(15000,"data/detect24/",trainvalidratio = 4,size = 24)
+        prepbackground(15000,"data/detect12/",trainvalidratio = 4,size = 12,startid=15000)
+        #prepcalib(10000,"data/adj48/",trainvalidratio = 4,size=48)
+        #prepcalib(10000,"data/adj24/",trainvalidratio = 4,size=24)
+        #prepcalib(10000,"data/adj12/",trainvalidratio = 4,size=12)
