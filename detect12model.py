@@ -2,6 +2,7 @@ from keras.layers import Input, Conv2D, Activation, MaxPooling2D,Flatten,Dense
 from keras.models import Model, load_model
 from keras.preprocessing.image import ImageDataGenerator
 from keras import backend as K
+from utils import  *
 from scipy.misc import imread, imsave
 import numpy as np
 import os
@@ -34,7 +35,7 @@ class detect12(object):
         validation_data_dir = "data/detect12/validation"
         nb_train_samples = len(os.listdir(train_data_dir +"/face")) + len(os.listdir(train_data_dir +"/notface"))
         nb_validation_samples = len(os.listdir(validation_data_dir +"/face")) + len(os.listdir(validation_data_dir +"/notface"))
-        n_epochs = 10
+        n_epochs = 4
         batch_size = 512
 
         if K.image_data_format() == 'channels_first':
@@ -70,12 +71,12 @@ class detect12(object):
     def test(self,testfile):
             model = load_model('net12.h5')
             rawimg = imread(testfile,mode='RGB').astype(np.float32)/255
-            rawimg = rawimg[np.newaxis,...]
+            rawimg = resizetoshape(rawimg,(L1SIZE,L1SIZE))
             predictions =  model.predict(rawimg)
 
 
             print predictions
 if __name__ == "__main__":
     d12 = detect12()
-    d12.test("/home/cephalopodoverlord/DroneProject/Charles570/ECE570/data/detect12/train/face/2.jpg")
+    d12.test("/home/cephalopodoverlord/DroneProject/Charles570/ECE570/data/detect12/train/notface/2.jpg")
     # face is 0

@@ -7,6 +7,7 @@ from keras import backend as K
 from keras.utils import np_utils,to_categorical
 from scipy.misc import imread, imsave, imresize
 from sklearn.preprocessing import LabelEncoder
+from PIL import Image
 from config import *
 import numpy as np
 from random import shuffle

@@ -83,10 +83,23 @@ def runframe(model,frame,wsize):
                 for yi,y in enumerate(range(0,maxY - wsize - STEP + 1,STEP)):
                         lowwindx = x
                         lowwindy = y
+                        if lowwindx == 2020 and lowwindy == 100:#1468:
+                                print frame.shape, (x,y)
+                                myface = frame[0,x:x+64,y:y+64,:]
+                                myface = pyramid_reduce(myface,downscale=int(64/12))
+                                myface = myface[:wsize,:wsize,:]
+                                myface = myface[np.newaxis,:]
+                                print model.predict(myface)
+                                frame = cv2.rectangle(frame[0], (x,y), (x + 64, y + 64), (255,0,0))
+                                frame = pyramid_reduce(frame,downscale=3)
+                                cv2.imshow("MYFACE",frame)
+                                cv2.waitKey(0)
+                                sys.exit(0)
                         maxwindx = x + wsize
                         maxwindy = y + wsize
                         framebuffer[xi*yistep + yi] = frame[:,lowwindx:maxwindx,lowwindy:maxwindy,:]
         for idx,conf in enumerate(model.predict(framebuffer)):
+                print frame.shape, data.shape, (int(idx/yistep),idx%yistep)
                 data[int(idx/yistep),idx%yistep] = conf
         return data
 

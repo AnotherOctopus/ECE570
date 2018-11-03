@@ -24,10 +24,10 @@ if __name__ == "__main__":
         sw.start("load image and scale")
         # Load image. Raw and batch variant
         rawimg = imread(testfile,mode='RGB').astype(np.float32)/255
-        rawimg = pyramid_reduce(rawimg,downscale=float(MINFACE)/L1SIZE)
+        #rawimg = pyramid_reduce(rawimg,downscale=float(MINFACE)/L1SIZE)
 
         # Generate a Downscaled variant of the image, down to 12x12 img
-        scalestep = 1.2
+        scalestep = 1.1
         imgpyr = tuple(pyramid_gaussian(rawimg,downscale =scalestep))
 
         sw.lap("12net detect")
@@ -67,8 +67,8 @@ if __name__ == "__main__":
         sw.lap("12net nms")
         for confidence in confidences:
                 confidence["boxes"] = NMS(confidence["boxes"])
-        drawall("12net",rawimg,confidences)
 
+        drawall("12net",rawimg,confidences)
         sw.lap("24net detect")
         for confidence in confidences:
                 scale = confidence["scale"]
@@ -90,6 +90,7 @@ if __name__ == "__main__":
                         continue
                 confidence["boxes"] = confidence["boxes"][confidence["boxes"][:,0].argsort()]
                 confidence["boxes"] = confidence["boxes"][:-numremoved]
+        drawall("24net",rawimg,confidences)
         sw.lap("24net calib")
         for confidence in confidences:
                 scale = confidence["scale"]

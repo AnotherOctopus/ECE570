@@ -64,7 +64,7 @@ def prepdetect(numface,datadir,trainvalidratio=10,size = 12,startid=1):
 
         lengthofcsv = len(data)
         for i in range(startid,numface + startid):
-                position = random.choice(data)
+                position = random.choice(data[1:])
                 face = umdcsvtobb(i,position)
                 img = imread(face['filename'])
                 area = (int(face['xpos']),
@@ -79,13 +79,15 @@ def prepdetect(numface,datadir,trainvalidratio=10,size = 12,startid=1):
                                 img = img[(img.shape[0]-size)/2:(img.shape[0]+size)/2 ,:,:]
                         else:
                                 img = pyramid_reduce(img,downscale=face['w']/float(size))
-                                img = img[:,(img.shape[0]-size)/2:(img.shape[0]+size)/2,:]
+                                img = img[:,(img.shape[1]-size)/2:(img.shape[1]+size)/2,:]
 
                         img = img[:size,:size,:]
                         if face['id']%trainvalidratio == 0:
                                 face['filename'] = os.path.join(validdir,"face","{}.jpg".format(face['id']))
                         else:
                                 face['filename'] = os.path.join(traindir,"face","{}.jpg".format(face['id']))
+                        if img.shape[0] != size or img.shape[1] != size:
+                                raise Exception("BLAH")
                         imsave(face['filename'],img)
                         print(size,lengthofcsv,"detect-face",face)
                 except:
@@ -97,7 +99,7 @@ def prepbackground(numback,datadir,trainvalidratio=10,size = 12,startid = 0):
         backgroundfeeddir = datasetdir + "classroombackround/"
         bkgroundimgs = os.listdir(backgroundfeeddir)
         for i in range(startid,numback + startid):
-                backimg = bkgroundimgs[picnum%len(bkgroundimgs)]
+                backimg = bkgroundimgs[i%len(bkgroundimgs)]
                 img = imread(os.path.join(backgroundfeeddir,backimg))
                 notface = randombb(img.shape,size)
                 notface['id'] = i
@@ -182,12 +184,12 @@ def prepcalib(numface, datadir, trainvalidratio=10,size=12,startid = 0):
                         pass
                 
 if __name__ == "__main__":
-        #prepdetect(20000,"data/detect48/",trainvalidratio = 4,size = 48)
-        #prepdetect(20000,"data/detect24/",trainvalidratio = 4,size = 24)
-        prepdetect(10000,"data/detect12/",trainvalidratio = 4,size = 12,startid=20000)
-        #prepbackground(15000,"data/detect48/",trainvalidratio = 4,size = 48)
-        #prepbackground(15000,"data/detect24/",trainvalidratio = 4,size = 24)
-        prepbackground(15000,"data/detect12/",trainvalidratio = 4,size = 12,startid=15000)
-        #prepcalib(10000,"data/adj48/",trainvalidratio = 4,size=48)
-        #prepcalib(10000,"data/adj24/",trainvalidratio = 4,size=24)
-        #prepcalib(10000,"data/adj12/",trainvalidratio = 4,size=12)
+        prepdetect(100000,"data/detect48/",trainvalidratio = 4,size = 48)
+        prepdetect(100000,"data/detect24/",trainvalidratio = 4,size = 24)
+        prepdetect(100000,"data/detect12/",trainvalidratio = 4,size = 12,startid=20000)
+        prepbackground(150000,"data/detect48/",trainvalidratio = 4,size = 48)
+        prepbackground(150000,"data/detect24/",trainvalidratio = 4,size = 24)
+        prepbackground(150000,"data/detect12/",trainvalidratio = 4,size = 12,startid=15000)
+        prepcalib(100000,"data/adj48/",trainvalidratio = 4,size=48)
+        prepcalib(100000,"data/adj24/",trainvalidratio = 4,size=24)
+        prepcalib(100000,"data/adj12/",trainvalidratio = 4,size=12)
