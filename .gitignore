@@ -4,3 +4,4 @@ datasets/
 *.h5
 *.pyc
 venv/
+.vscode/

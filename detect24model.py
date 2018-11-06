@@ -47,16 +47,14 @@ class detect24(object):
                                     lr =0.0001 
                         ),
                         metrics=['accuracy'])
-    def train(self):
+    def train(self,saveas,train_data_dir,valid_data_dir,tags):
 
         # dimensions of images
         img_width, img_height = 24,24
         # data
-        train_data_dir = "data/detect24/train"
-        valid_data_dir = "data/detect24/validation"
-        nb_train_samples = len(os.listdir(train_data_dir +"/face")) + len(os.listdir(train_data_dir +"/notface"))
-        nb_validation_samples = len(os.listdir(valid_data_dir +"/face")) + len(os.listdir(valid_data_dir +"/notface"))
-        n_epochs = 40
+        nb_train_data_dir = len(os.listdir(os.path.join(train_data_dir,tags[0]))) + len(os.listdir(os.path.join(train_data_dir,tags[1])))
+        nb_valid_data_dir = len(os.listdir(os.path.join(valid_data_dir,tags[0]))) + len(os.listdir(os.path.join(valid_data_dir,tags[1])))
+        n_epochs = 50
         batch_size = 128
 
         if K.image_data_format() == 'channels_first':
@@ -73,10 +71,12 @@ class detect24(object):
         valid_datagen = ImageDataGenerator(rescale=1. / 255)
         train_generator=generate_generator_two(generator=train_datagen,
                                             datadir=train_data_dir,
-                                            batch_size=batch_size)
+                                            batch_size=batch_size,
+                                            tag=tags)
         valid_generator=generate_generator_two(generator=valid_datagen,
                                             datadir=valid_data_dir,
-                                            batch_size=batch_size)
+                                            batch_size=batch_size,
+                                            tag=tags)
         """
         train24 /= 255.0
         train12 /= 255.0
@@ -84,14 +84,15 @@ class detect24(object):
         valid12 /= 255.0
         """
         # Train
-        self.model.fit_generator(train_generator,
-                            steps_per_epoch=nb_train_samples // batch_size,
+        hist = self.model.fit_generator(train_generator,
+                            steps_per_epoch= nb_train_data_dir// batch_size,
                             epochs=n_epochs,
                             validation_data=valid_generator,
-                            validation_steps=nb_validation_samples // batch_size,
+                            validation_steps=nb_valid_data_dir// batch_size,
                             verbose=1)
 
-        self.model.save("detect24.h5")
+        self.model.save(saveas)
+        return hist
     def test(self,testfile):
             model = load_model('detect24.h5')
             rawimg = imread(testfile,mode='RGB').astype(np.float32)/255

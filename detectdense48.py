@@ -5,19 +5,23 @@ from keras.models import Model, load_model
 from keras import backend as K
 from keras.preprocessing.image import ImageDataGenerator 
 from PIL import Image
-from keras.optimizers import SGD
+from keras.optimizers import SGD,Adam
 from datagenerators import *
 from scipy.misc import imread, imsave
 import numpy as np
 import os
 class dense48(object):
-    def __init__(self,growth = 12):
+    def __init__(self,growth = 4):
             ## build model 48
             feat = 3
             inp48 = Input(shape=(48,48,feat),dtype='float32')
             inp24 = Input(shape=(24,24,feat),dtype='float32')
             inp12 = Input(shape=(12,12,feat),dtype='float32')
-            x1 = self.denselayer(inp48,feat)
+            self.growth = growth
+            x1 = Conv2D(growth*12,(5,5),padding="same")(inp48)
+            x1 = Activation("relu")(inp48)
+
+            x1 = self.denselayer(x1,feat)
             feat += growth
             x2 = self.denselayer(x1,feat)
             feat += growth
@@ -29,17 +33,9 @@ class dense48(object):
 
             x6 = self.denselayer(x5, feat)
             feat += growth
-            x7 = concatenate([x1,x2,x4,x6])
-
-            x8 = self.denselayer(x7, feat)
-            feat += growth
-            x9 = concatenate([x1,x2,x4,x6,x8])
-
-            x10 = self.denselayer(x9, feat)
-            feat += growth
 
             feat /= 2
-            x11 = self.transitionlayer(x10,feat)
+            x11 = self.transitionlayer(x6,feat)
             x11 = concatenate([x11,inp24])
 
             x12 = self.denselayer(x11,feat)
@@ -78,28 +74,8 @@ class dense48(object):
             x25 = self.denselayer(x24,feat)
             feat += growth
 
-            x26 = concatenate([x12,x13,x15,x17,x19,x21,x23,x25])
-
-            x27 = self.denselayer(x26,feat)
-            feat += growth
-
-            x28 = concatenate([x12,x13,x15,x17,x19,x21,x23,x25,x27])
-
-            x29 = self.denselayer(x28,feat)
-            feat += growth
-
-            x30 = concatenate([x12,x13,x15,x17,x19,x21,x23,x25,x27,x29])
-
-            x31 = self.denselayer(x30,feat)
-            feat += growth
-
-            x32 = concatenate([x12,x13,x15,x17,x19,x21,x23,x25,x27,x29,x31])
-
-            x33 = self.denselayer(x32,feat)
-            feat += growth
-
             feat /= 2
-            x34 = self.transitionlayer(x33,feat)
+            x34 = self.transitionlayer(x25,feat)
             x34 = concatenate([x34,inp12])
 
             x35 = self.denselayer(x34,feat)
@@ -158,62 +134,13 @@ class dense48(object):
             x56 = self.denselayer(x55,feat)
             feat += growth
 
-            x57 = concatenate([x35,x36,x38,x40,x42,x44,x46,x48,x50,x52,x54,x56])
-            x58 = self.denselayer(x57,feat)
-            feat += growth
+            feat /= 2
+            x57 = self.transitionlayer(x56,feat)
 
-            x59 = concatenate([x35,x36,x38,x40,x42,x44,x46,x48,x50,x52,x54,x56,x58])
-
-            x60 = self.denselayer(x59,feat)
-            feat += growth
-
-            x61 = concatenate([x35,x36,x38,x40,x42,x44,x46,x48,x50,x52,x54,x56,x58,x60])
-
-            x62 = self.denselayer(x61,feat)
-            feat += growth
-
-            x63 = concatenate([x35,x36,x38,x40,x42,x44,x46,x48,x50,x52,x54,x56,x58,x60,x62])
-
-            x64 = self.denselayer(x63,feat)
-            feat += growth
-
-            x65 = concatenate([x35,x36,x38,x40,x42,x44,x46,x48,x50,x52,x54,x56,x58,x60,x62,x64])
-
-            x66 = self.denselayer(x65,feat)
-            feat += growth
-
-            x67 = concatenate([x35,x36,x38,x40,x42,x44,x46,x48,x50,x52,x54,x56,x58,x60,x62,x64,x66])
-
-            x68 = self.denselayer(x67,feat)
-            feat += growth
-
-            x69 = concatenate([x35,x36,x38,x40,x42,x44,x46,x48,x50,x52,x54,x56,x58,x60,x62,x64,x66,x68])
-
-            x70 = self.denselayer(x69,feat)
-            feat += growth
-
-            x71 = concatenate([x35,x36,x38,x40,x42,x44,x46,x48,x50,x52,x54,x56,x58,x60,x62,x64,x66,x68,x70])
-
-            x72 = self.denselayer(x71,feat)
-            feat += growth
-
-            x73 = concatenate([x35,x36,x38,x40,x42,x44,x46,x48,x50,x52,x54,x56,x58,x60,x62,x64,x66,x68,x70,x72])
-
-            x74 = self.denselayer(x73,feat)
-            feat += growth
-
-            x75 = concatenate([x35,x36,x38,x40,x42,x44,x46,x48,x50,x52,x54,x56,x58,x60,x62,x64,x66,x68,x70,x72,x74])
-
-            x76 = self.denselayer(x75,feat)
-            feat += growth
-
-            x77 = concatenate([x35,x36,x38,x40,x42,x44,x46,x48,x50,x52,x54,x56,x58,x60,x62,x64,x66,x68,x70,x72,x74,x76])
-
-            x78 = self.denselayer(x77,feat)
-            feat += growth
-
-            x = GlobalAveragePooling2D()(x78)
+            x = GlobalAveragePooling2D()(x57)
             x = Dense(1000)(x)
+            x = Activation("relu")(x)
+            x = Dense(100)(x)
             x = Activation("relu")(x)
             x = Dense(1)(x)
 
@@ -235,21 +162,19 @@ class dense48(object):
 
 
             self.model.compile(loss='binary_crossentropy',
-                        optimizer=SGD(
-                                    lr =0.01 
-                        ),
+                        optimizer=Adam(lr=0.0001),
                         metrics=['accuracy'])
     def train(self):
 
         # dimensions of images
         img_width, img_height = 48,48
         # data
-        train_data_dir = "data/detect48/train"
-        valid_data_dir = "data/detect48/validation"
+        train_data_dir = "data/faces/detect48/train"
+        valid_data_dir = "data/faces/detect48/validation"
         nb_train_samples = len(os.listdir(train_data_dir +"/face")) + len(os.listdir(train_data_dir +"/notface"))
         nb_validation_samples = len(os.listdir(valid_data_dir +"/face")) + len(os.listdir(valid_data_dir +"/notface"))
-        n_epochs = 20
-        batch_size = 8
+        n_epochs = 40
+        batch_size = 64
 
         if K.image_data_format() == 'channels_first':
             input_shape = (3, img_width, img_height)
@@ -280,14 +205,15 @@ class dense48(object):
         valid12 /= 255.0
         """
         # Train
-        self.model.fit_generator(train_generator,
+        hist = self.model.fit_generator(train_generator,
                             steps_per_epoch=nb_train_samples // batch_size,
                             epochs=n_epochs,
                             validation_data=valid_generator,
                             validation_steps=nb_validation_samples // batch_size,
                             verbose=1)
 
-        model.save("densedetect48.h5")
+        self.model.save("densedetect48.h5")
+        return hist
     def test(self,testfile):
             model = load_model('detect48.h5')
             rawimg = imread(testfile,mode='RGB').astype(np.float32)/255

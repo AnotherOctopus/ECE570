@@ -2,6 +2,7 @@ from keras.layers import Input, Conv2D, Activation, MaxPooling2D,Flatten,Dense
 from keras import backend as K
 from keras.preprocessing.image import ImageDataGenerator
 from keras.metrics import categorical_accuracy
+from keras.optimizers import SGD
 import os
 from keras.models import Model
 from keras.optimizers import Adam
@@ -27,19 +28,15 @@ class calib24(object):
     def compile(self):
 
             self.model.compile(loss='binary_crossentropy',
-                        optimizer=Adam(
-                                    lr =0.0001 
-                        ),
+                        optimizer=SGD(),
                         metrics=[categorical_accuracy])
-    def train(self):
+    def train(self,saveas,train_data_dir,validation_data_dir,tags=["face","notface"]):
+
         # dimensions of images
         img_width, img_height = 24,24
-        # data
-        train_data_dir = "data/adj24/train"
-        validation_data_dir = "data/adj24/validation"
         nb_train_samples = len(os.listdir(train_data_dir +"/face"))
         nb_validation_samples = len(os.listdir(validation_data_dir +"/face"))
-        n_epochs = 100
+        n_epochs = 40
         if K.image_data_format() == 'channels_first':
             input_shape = (3, img_width, img_height)
         else:
@@ -54,17 +51,17 @@ class calib24(object):
         train_datagen = ImageDataGenerator(rescale=1. / 255)
         test_datagen = ImageDataGenerator(rescale=1. / 255)
 
-        trainimgs, trainlabels = collecttagsfromdir( train_data_dir,shape = 24)
+        trainimgs, trainlabels = collecttagsfromdir( train_data_dir, tag = tags[0],shape = 24)
         trainlabels = to_categorical(trainlabels)
         train_generator = train_datagen.flow(trainimgs,
                                             trainlabels)
 
-        validimgs, validlabels = collecttagsfromdir(validation_data_dir,shape=24)
+        validimgs, validlabels = collecttagsfromdir(validation_data_dir, tag = tags[0],shape=24)
         validlabels = to_categorical(validlabels)
         validation_generator = test_datagen.flow(validimgs,
                                                 validlabels)
         # Train
-        model.fit(trainimgs,
+        hist = model.fit(trainimgs,
                 trainlabels,
                 batch_size =64,
                 epochs=n_epochs,
@@ -73,3 +70,4 @@ class calib24(object):
                 verbose=1)
 
         model.save("calib24.h5")
+        return hist

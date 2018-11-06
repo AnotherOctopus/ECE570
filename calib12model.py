@@ -2,6 +2,7 @@ from keras.layers import Input, Conv2D, Activation, MaxPooling2D,Flatten,Dense
 from keras.models import Model, load_model
 from keras.preprocessing.image import ImageDataGenerator
 from keras.metrics import categorical_accuracy
+from keras.optimizers import SGD,Adam
 from keras import backend as K
 from utils import * 
 from config import *
@@ -17,7 +18,7 @@ class calib12(object):
             x = Dense(128)(x)
             x = Activation("relu")(x)
             x = Dense(45)(x)
-            x = Activation("softsign")(x)
+            x = Activation("relu")(x)
             self.model = Model(inputs=inp,outputs=x)
             self.inp = inp
             self.out = x
@@ -27,17 +28,17 @@ class calib12(object):
     def compile(self):
 
             self.model.compile(loss='binary_crossentropy',
-                        optimizer='adam',
+                        optimizer=SGD(
+                                lr=0.0001
+                        ),
                         metrics=[categorical_accuracy])
-    def train(self):
+    def train(self,saveas,train_data_dir,validation_data_dir,tags=["face","notface"]):
+
         # dimensions of images
         img_width, img_height = 12,12
-        # data
-        train_data_dir = "data/adj12/train"
-        validation_data_dir = "data/adj12/validation"
         nb_train_samples = len(os.listdir(train_data_dir +"/face"))
         nb_validation_samples = len(os.listdir(validation_data_dir +"/face"))
-        n_epochs = 10
+        n_epochs = 1000
         if K.image_data_format() == 'channels_first':
             input_shape = (3, img_width, img_height)
         else:
@@ -47,17 +48,17 @@ class calib12(object):
         train_datagen = ImageDataGenerator(rescale=1. / 255)
         test_datagen = ImageDataGenerator(rescale=1. / 255)
 
-        trainimgs, trainlabels = collecttagsfromdir( train_data_dir)
+        trainimgs, trainlabels = collecttagsfromdir( train_data_dir, tag = tags[0])
         trainlabels = to_categorical(trainlabels)
         train_generator = train_datagen.flow(trainimgs,
                                             trainlabels)
 
-        validimgs, validlabels = collecttagsfromdir(validation_data_dir)
+        validimgs, validlabels = collecttagsfromdir(validation_data_dir, tag = tags[0])
         validlabels = to_categorical(validlabels)
         validation_generator = test_datagen.flow(validimgs,
                                                 validlabels)
         # Train
-        self.model.fit(trainimgs,
+        hist = self.model.fit(trainimgs,
                 trainlabels,
                 batch_size =64,
                 epochs=n_epochs,
@@ -66,6 +67,7 @@ class calib12(object):
                 verbose=1)
 
         self.model.save("calib12.h5")
+        return hist
 
     def test(self,testfile,validfile):
             model = load_model('calib12.h5')
@@ -99,7 +101,7 @@ class calib12(object):
                     print "ACTUAL", adjclassV[adjclass.index(data)]
 if __name__ == "__main__":
     c12 = calib12()
-    c12.test("/home/cephalopodoverlord/DroneProject/Charles570/ECE570/data/adj12/train/face/114.jpg",
-             "/home/cephalopodoverlord/DroneProject/Charles570/ECE570/data/adj12/train/tag/114.txt"
+    c12.test("/home/cephalopodoverlord/DroneProject/Charles570/ECE570/data/faces/adj12/train/face/115.jpg",
+             "/home/cephalopodoverlord/DroneProject/Charles570/ECE570/data/faces/adj12/train/tag/115.txt"
     )
     # face is 0

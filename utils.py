@@ -7,13 +7,14 @@ from scipy.misc import imread
 from keras.utils import to_categorical
 from datetime import datetime
 import time
+from keras.models import load_model
 
-def collecttagsfromdir(datadir,shape = 12):
-    numsamples = len(os.listdir(datadir +"/face"))
+def collecttagsfromdir(datadir,tag = "face",shape = 12):
+    numsamples = len(os.listdir(os.path.join(datadir,tag)))
     imgs = np.empty((numsamples,shape,shape,3),dtype=np.float32)
     labels = []
-    for idx, img, tag in zip(range(numsamples), os.listdir(datadir+"/face"),os.listdir(datadir+"/tag")):
-        imgs[idx,:,:,:] = imread(os.path.join(datadir,"face",img))
+    for idx, img, tag in zip(range(numsamples), os.listdir(os.path.join(datadir,tag)),os.listdir(datadir+"/tag")):
+        imgs[idx,:,:,:] = imread(os.path.join(datadir,tag,img))
         with open(os.path.join(datadir,"tag",tag),"r") as fh:
             labels.append(adjclass.index(fh.read()))
     return imgs, labels
@@ -36,8 +37,8 @@ def NMS(boxes):
                         bX2 = int(boxB[2])
                         bY1 = int(boxB[1])
                         bY2 = int(boxB[3])
-                        boxAArea = (aX2 - aX1 ) * (aY1 - aY2)
-                        boxBArea = (bX2 - bX1 ) * (bY1 - bY2)
+                        boxAArea = (aX2 - aX1 ) * (aY2 - aY1)
+                        boxBArea = (bX2 - bX1 ) * (bY2 - bY1)
 
                         x_over = max(0,min(aX2,bX2) - max(aX1,bX1))
                         y_over = max(0,min(aY2,bY2) - max(aY1,bY1))
@@ -78,29 +79,28 @@ def runframe(model,frame,wsize):
         maxY = frame.shape[2]
         data = np.ones((int((maxX-wsize)/STEP) ,int((maxY-wsize)/STEP) ))
         framebuffer = np.ones(((data.shape[0]) * (data.shape[1] ),wsize,wsize,frame.shape[3]))
-        yistep = data.shape[1]
-        for xi,x in enumerate(range(0,maxX - wsize - STEP + 1,STEP)):
-                for yi,y in enumerate(range(0,maxY - wsize - STEP + 1,STEP)):
+        yistep = data.shape[0]
+        #cv2.imshow("Frame",frame[0,:,:,:])
+        #cv2.waitKey(0)
+        for yi,y in enumerate(range(0,maxY - wsize - STEP + 1,STEP)):
+                for xi,x in enumerate(range(0,maxX - wsize - STEP + 1,STEP)):
                         lowwindx = x
                         lowwindy = y
-                        if lowwindx == 2020 and lowwindy == 100:#1468:
-                                print frame.shape, (x,y)
-                                myface = frame[0,x:x+64,y:y+64,:]
-                                myface = pyramid_reduce(myface,downscale=int(64/12))
-                                myface = myface[:wsize,:wsize,:]
-                                myface = myface[np.newaxis,:]
-                                print model.predict(myface)
-                                frame = cv2.rectangle(frame[0], (x,y), (x + 64, y + 64), (255,0,0))
-                                frame = pyramid_reduce(frame,downscale=3)
-                                cv2.imshow("MYFACE",frame)
-                                cv2.waitKey(0)
-                                sys.exit(0)
                         maxwindx = x + wsize
                         maxwindy = y + wsize
-                        framebuffer[xi*yistep + yi] = frame[:,lowwindx:maxwindx,lowwindy:maxwindy,:]
+                        #print (xi,yi), data.shape, (x,y),frame.shape
+                        framebuffer[yi*yistep + xi] = frame[:,lowwindx:maxwindx,lowwindy:maxwindy,:]
+                        if lowwindy == 2020 and lowwindx == 1468:
+                                print xi,yi
+                                si = 12
+                                cv2.imshow("Myface",frame[0,lowwindx:lowwindx + si,lowwindy:lowwindy + si,:])
+                                fframe = pyramid_reduce(frame[0,lowwindx:lowwindx + si,lowwindy:lowwindy + si,:],downscale=int(si/12))
+                                fframe = fframe[np.newaxis,:]
+                                fframe = fframe[:,:12,:12,:]
+                                print model.predict(fframe)
+                                cv2.waitKey(0)
         for idx,conf in enumerate(model.predict(framebuffer)):
-                print frame.shape, data.shape, (int(idx/yistep),idx%yistep)
-                data[int(idx/yistep),idx%yistep] = conf
+                data[idx%yistep, int(idx/yistep)] = conf
         return data
 
 def predToShift(prediction,thresh=CALIB12THRESH):
@@ -136,7 +136,11 @@ def drawfinal(name,rawimg,boxes):
                 Y1 = int(box[2])
                 X2 = int(box[3])
                 Y2 = int(box[4])
-                final = cv2.rectangle(final, (X1,Y1), (X2,Y2), (255,0,0))
+                try:
+                        final = cv2.rectangle(final, (Y1,X1), (Y2,X2), (255,0,0))
+                except:
+                        pass
+        final = pyramid_reduce(final,downscale=4)
         cv2.imshow(name,final)
 def drawall(name,rawimg,confidences,drawscale = False,scaleup = True):
         if not DISPLAY:
@@ -161,10 +165,12 @@ def drawall(name,rawimg,confidences,drawscale = False,scaleup = True):
                                 Y2 = int(box[4])
                         #cv2.putText(imageatscale, str(box[0]), (X1 + textshift, Y1 + textshift), font, 0.8, (0, 255, 0), 2, cv2.LINE_AA)
                         #cv2.putText(final, str(box[0]), (X1 + textshift, Y1 + textshift), font, 0.8, (0, 255, 0), 2, cv2.LINE_AA)
-                        imageatscale = cv2.rectangle(imageatscale, (X1,Y1), (X2,Y2), (255,0,0))
-                        final = cv2.rectangle(final, (X1,Y1), (X2,Y2), (255,0,0))
+                        imageatscale = cv2.rectangle(imageatscale, (Y1,X1), (Y2,X2), (255,0,0))
+                        final = cv2.rectangle(final, (Y1,X1), (Y2,X2), (255,0,0))
                 if drawscale:
+                        imageatscale = pyramid_reduce(imageatscale,downscale=4)
                         cv2.imshow("{} - Scale{}".format(name,scale),imageatscale)
+        final = pyramid_reduce(final,downscale=4)
         cv2.imshow("{} - final".format(name),final)
 def resizetoshape(img,wind):
         wind = wind[0]
@@ -222,5 +228,11 @@ class Stopwatch():
                 ret += "Total Runtime: {}\n".format(self.endtime - self.starttime)
                 return ret
 if __name__ == "__main__":
+        detect48model = load_model('detect48.h5')
+        testfile = "/home/cephalopodoverlord/DroneProject/Charles570/ECE570/datasets/myfaceinback.JPG"
+        rawimg = imread(testfile,mode='RGB').astype(np.float32)/255
+        img = pyramid_reduce(rawimg,downscale=4)
+        img = img[np.newaxis,:]
+        runframe(detect48model,img,48)
         testboxes = np.array([[1,5,3,3,5], [0,0,2,2,0]])
         print NMS(testboxes)

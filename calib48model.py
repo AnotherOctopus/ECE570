@@ -33,19 +33,15 @@ class calib48(object):
     def compile(self):
 
             self.model.compile(loss='binary_crossentropy',
-                        optimizer=SGD(
-                                    lr =0.0001 
-                        ),
+                        optimizer=SGD(),
                         metrics=[categorical_accuracy])
-    def train(self):
+    def train(self,saveas,train_data_dir,validation_data_dir,tags=["face","notface"]):
+
         # dimensions of images
         img_width, img_height = 48,48
-        # data
-        train_data_dir = "data/adj48/train"
-        validation_data_dir = "data/adj48/validation"
         nb_train_samples = len(os.listdir(train_data_dir +"/face"))
         nb_validation_samples = len(os.listdir(validation_data_dir +"/face"))
-        n_epochs = 100
+        n_epochs = 40
         if K.image_data_format() == 'channels_first':
             input_shape = (3, img_width, img_height)
         else:
@@ -60,17 +56,18 @@ class calib48(object):
         train_datagen = ImageDataGenerator(rescale=1. / 255)
         test_datagen = ImageDataGenerator(rescale=1. / 255)
 
-        trainimgs, trainlabels = collecttagsfromdir( train_data_dir,shape = 48)
+        trainimgs, trainlabels = collecttagsfromdir( train_data_dir, tag = tags[0],shape = 48)
         trainlabels = to_categorical(trainlabels)
         train_generator = train_datagen.flow(trainimgs,
                                             trainlabels)
 
-        validimgs, validlabels = collecttagsfromdir(validation_data_dir,shape=48)
+        validimgs, validlabels = collecttagsfromdir(validation_data_dir, tag = tags[0],shape=48)
         validlabels = to_categorical(validlabels)
+        print len(validlabels[0])
         validation_generator = test_datagen.flow(validimgs,
                                                 validlabels)
         # Train
-        model.fit(trainimgs,
+        hist = model.fit(trainimgs,
                 trainlabels,
                 batch_size =64,
                 epochs=n_epochs,
@@ -79,6 +76,7 @@ class calib48(object):
                 verbose=1)
 
         model.save("calib48.h5")
+        return hist
     def test(self,testfile,validfile):
         model = load_model('calib48.h5')
         rawimg = imread(testfile,mode='RGB').astype(np.float32)/255

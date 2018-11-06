@@ -55,16 +55,14 @@ class detect48(object):
                                     lr =0.01 
                         ),
                         metrics=['accuracy'])
-    def train(self):
+    def train(self,saveas,train_data_dir,valid_data_dir,tags):
 
         # dimensions of images
         img_width, img_height = 48,48
         # data
-        train_data_dir = "data/detect48/train"
-        valid_data_dir = "data/detect48/validation"
-        nb_train_samples = len(os.listdir(train_data_dir +"/face")) + len(os.listdir(train_data_dir +"/notface"))
-        nb_validation_samples = len(os.listdir(valid_data_dir +"/face")) + len(os.listdir(valid_data_dir +"/notface"))
-        n_epochs = 20
+        nb_train_data_dir = len(os.listdir(os.path.join(train_data_dir,tags[0]))) + len(os.listdir(os.path.join(train_data_dir,tags[1])))
+        nb_valid_dir = len(os.listdir(os.path.join(valid_data_dir,tags[0]))) + len(os.listdir(os.path.join(valid_data_dir,tags[1])))
+        n_epochs = 30
         batch_size = 128
 
         if K.image_data_format() == 'channels_first':
@@ -90,10 +88,14 @@ class detect48(object):
         valid_datagen = ImageDataGenerator(rescale=1. / 255)
         train_generator=generate_generator_three(generator=train_datagen,
                                             datadir=train_data_dir,
-                                            batch_size=batch_size)
+                                            batch_size=batch_size,
+                                            tag=tags
+                                            )
         valid_generator=generate_generator_three(generator=valid_datagen,
                                             datadir=valid_data_dir,
-                                            batch_size=batch_size)
+                                            batch_size=batch_size,
+                                            tag=tags
+                                            )
         """
         train24 /= 255.0
         train12 /= 255.0
@@ -101,14 +103,15 @@ class detect48(object):
         valid12 /= 255.0
         """
         # Train
-        model.fit_generator(train_generator,
-                            steps_per_epoch=nb_train_samples // batch_size,
+        hist = model.fit_generator(train_generator,
+                            steps_per_epoch=nb_train_data_dir // batch_size,
                             epochs=n_epochs,
                             validation_data=valid_generator,
-                            validation_steps=nb_validation_samples // batch_size,
+                            validation_steps=nb_valid_dir // batch_size,
                             verbose=1)
 
-        model.save("detect48.h5")
+        model.save(saveas)
+        return hist
     def test(self,testfile):
             model = load_model('detect48.h5')
             rawimg = imread(testfile,mode='RGB').astype(np.float32)/255
