@@ -13,9 +13,9 @@ def collecttagsfromdir(datadir,tag = "face",shape = 12):
     numsamples = len(os.listdir(os.path.join(datadir,tag)))
     imgs = np.empty((numsamples,shape,shape,3),dtype=np.float32)
     labels = []
-    for idx, img, tag in zip(range(numsamples), os.listdir(os.path.join(datadir,tag)),os.listdir(datadir+"/tag")):
+    for idx, img, tagn in zip(range(numsamples), os.listdir(os.path.join(datadir,tag)),os.listdir(datadir+"/tag")):
         imgs[idx,:,:,:] = imread(os.path.join(datadir,tag,img))
-        with open(os.path.join(datadir,"tag",tag),"r") as fh:
+        with open(os.path.join(datadir,"tag",tagn),"r") as fh:
             labels.append(adjclass.index(fh.read()))
     return imgs, labels
 # BB is defined (conf,min_x,min_y,max_x,maxy)
@@ -127,7 +127,7 @@ def rectifypoints(point,windowsize,frameshape):
         newX2 = min(point[2], frameshape[0] - windowsize/2)
         newY2 = min(point[3], frameshape[1] - windowsize/2)
         return newX1, newY1, newX2, newY2
-def drawfinal(name,rawimg,boxes):
+def drawfinal(name,rawimg,boxes,color=(255,0,0)):
         if not DISPLAY:
                 return
         final = rawimg.copy()
@@ -137,12 +137,12 @@ def drawfinal(name,rawimg,boxes):
                 X2 = int(box[3])
                 Y2 = int(box[4])
                 try:
-                        final = cv2.rectangle(final, (Y1,X1), (Y2,X2), (255,0,0))
+                        final = cv2.rectangle(final, (Y1,X1), (Y2,X2), color )
                 except:
                         pass
         final = pyramid_reduce(final,downscale=4)
         cv2.imshow(name,final)
-def drawall(name,rawimg,confidences,drawscale = False,scaleup = True):
+def drawall(name,rawimg,confidences,drawscale = False,scaleup = True,color = (255,0,0)):
         if not DISPLAY:
                 return
 
@@ -165,8 +165,8 @@ def drawall(name,rawimg,confidences,drawscale = False,scaleup = True):
                                 Y2 = int(box[4])
                         #cv2.putText(imageatscale, str(box[0]), (X1 + textshift, Y1 + textshift), font, 0.8, (0, 255, 0), 2, cv2.LINE_AA)
                         #cv2.putText(final, str(box[0]), (X1 + textshift, Y1 + textshift), font, 0.8, (0, 255, 0), 2, cv2.LINE_AA)
-                        imageatscale = cv2.rectangle(imageatscale, (Y1,X1), (Y2,X2), (255,0,0))
-                        final = cv2.rectangle(final, (Y1,X1), (Y2,X2), (255,0,0))
+                        imageatscale = cv2.rectangle(imageatscale, (Y1,X1), (Y2,X2),color)
+                        final = cv2.rectangle(final, (Y1,X1), (Y2,X2), color)
                 if drawscale:
                         imageatscale = pyramid_reduce(imageatscale,downscale=4)
                         cv2.imshow("{} - Scale{}".format(name,scale),imageatscale)

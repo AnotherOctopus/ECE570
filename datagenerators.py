@@ -21,7 +21,7 @@ def prepnet24data(datadir,tag= ["face","notface"]):
     shuffle(alldatafiles)
     for idx, img in enumerate(alldatafiles):
         frame = imread(img)
-        imgs24[idx,:,:,:] = imread(frame)
+        imgs24[idx,:,:,:] = frame
         imgs12[idx,:,:,:] = np.asarray(pyramid_reduce(frame,downscale=2))
         if tag[1] in img:
             labels[idx] = 0

@@ -39,8 +39,8 @@ class calib48(object):
 
         # dimensions of images
         img_width, img_height = 48,48
-        nb_train_samples = len(os.listdir(train_data_dir +"/face"))
-        nb_validation_samples = len(os.listdir(validation_data_dir +"/face"))
+        nb_train_samples = len(os.listdir(os.path.join(train_data_dir,tags[0])))
+        nb_validation_samples = len(os.listdir(os.path.join(validation_data_dir,tags[0])))
         n_epochs = 40
         if K.image_data_format() == 'channels_first':
             input_shape = (3, img_width, img_height)
@@ -75,7 +75,7 @@ class calib48(object):
                 shuffle=True,
                 verbose=1)
 
-        model.save("calib48.h5")
+        model.save(saveas)
         return hist
     def test(self,testfile,validfile):
         model = load_model('calib48.h5')

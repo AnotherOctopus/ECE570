@@ -36,9 +36,9 @@ class calib12(object):
 
         # dimensions of images
         img_width, img_height = 12,12
-        nb_train_samples = len(os.listdir(train_data_dir +"/face"))
-        nb_validation_samples = len(os.listdir(validation_data_dir +"/face"))
-        n_epochs = 1000
+        nb_train_samples = len(os.listdir(os.path.join(train_data_dir,tags[0])))
+        nb_validation_samples = len(os.listdir(os.path.join(validation_data_dir,tags[0])))
+        n_epochs = 100
         if K.image_data_format() == 'channels_first':
             input_shape = (3, img_width, img_height)
         else:
@@ -66,7 +66,7 @@ class calib12(object):
                 shuffle=True,
                 verbose=1)
 
-        self.model.save("calib12.h5")
+        self.model.save(saveas)
         return hist
 
     def test(self,testfile,validfile):

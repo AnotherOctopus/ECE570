@@ -55,7 +55,7 @@ class detect48(object):
                                     lr =0.01 
                         ),
                         metrics=['accuracy'])
-    def train(self,saveas,train_data_dir,valid_data_dir,tags):
+    def train(self,saveas,train_data_dir,valid_data_dir,tags=["face","notface"]):
 
         # dimensions of images
         img_width, img_height = 48,48

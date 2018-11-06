@@ -32,7 +32,7 @@ if __name__ == "__main__":
         sw.start("load image and scale")
         # Load image. Raw and batch variant
         while True:
-                if True:
+                if False:
                         cap = cv2.VideoCapture("rtsp://192.168.0.124:554/mpeg4?username=admin&password=123456")
                         ret, inpimg = cap.read() 
                         while not ret :
