@@ -10,7 +10,7 @@ import time
 
 # Run the whole layer net
 if __name__ == "__main__":
-        sw = Stopwatch(disable=True)
+        sw = Stopwatch(disable=False)
         # File we are running on
 
         # Instantiate all the models
@@ -118,11 +118,14 @@ if __name__ == "__main__":
                                 confidence["boxes"][idx] = adjBB(box,predToShift(shift, thresh = CALIB12THRESH))
                 sw.lap("12net nms")
                 for confidence in confidences:
+                        confidence["boxes"]  = confidence["boxes"][confidence["boxes"][:,0].argsort()]
                         confidence["boxes"] = NMS(confidence["boxes"])
 
                 for confidence in handconfidences:
+                        confidence["boxes"]  = confidence["boxes"][confidence["boxes"][:,0].argsort()]
                         confidence["boxes"] = NMS(confidence["boxes"])
-                drawall("12net postcalib",rawimg,confidences)
+                drawall("12net postnms",rawimg,confidences)
+                drawall("12net postcalib hand",rawimg,handconfidences,color = (0,255,0))
 
                 sw.lap("24net detect")
                 for confidence in confidences:
@@ -136,6 +139,9 @@ if __name__ == "__main__":
                                 wind12 = resizetoshape(rawimg[X1:X2,Y1:Y2,:],(L1SIZE,L1SIZE))
                                 wind24 = resizetoshape(rawimg[X1:X2,Y1:Y2,:],(L2SIZE,L2SIZE))
                                 conf = detect24model.predict([wind24,wind12])[0][0]
+                                print conf
+                                #cv2.imshow("BOX",wind24[0,:,:,:])
+                                #cv2.waitKey(0)
                                 if conf > DETECT24THRESH:
                                         confidence["boxes"][idx][0] = (1-conf)*MAXCONF
                                 else:
@@ -278,4 +284,5 @@ if __name__ == "__main__":
                         print box[0]
                 sw.stop()
                 print sw.log()
-                cv2.waitKey(30)
+                cv2.waitKey(0)
+                break

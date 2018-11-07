@@ -68,8 +68,8 @@ class detect12(object):
         self.model.save(saveas)
         
         return hist
-    def test(self,testfile):
-            model = load_model('net12.h5')
+    def test(self,model,testfile):
+            model = load_model(model)
             rawimg = imread(testfile,mode='RGB').astype(np.float32)/255
             rawimg = resizetoshape(rawimg,(L1SIZE,L1SIZE))
             predictions =  model.predict(rawimg)
@@ -78,5 +78,5 @@ class detect12(object):
             print predictions
 if __name__ == "__main__":
     d12 = detect12()
-    d12.test("/home/cephalopodoverlord/DroneProject/Charles570/ECE570/data/detect12/train/notface/3.jpg")
+    d12.test("facedetect12.h5","/home/cephalopodoverlord/DroneProject/Charles570/ECE570/data/faces/detect12/train/notface/6.jpg")
     # face is 0

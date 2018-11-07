@@ -21,14 +21,16 @@ def collecttagsfromdir(datadir,tag = "face",shape = 12):
 # BB is defined (conf,min_x,min_y,max_x,maxy)
 def NMS(boxes):
         numboxesremoved = 0
-        for i, box in enumerate(boxes[:-1]):
-                if box[0] == MAXCONF:
+        idx = 0
+        while idx < len(boxes) -1 :
+                if boxes[idx][0] == MAXCONF:
+                        idx += 1
                         continue
                 def IOU(boxA):
                         if boxA[0] == MAXCONF:
                                 return 0 
                         boxA =  boxA[1:]
-                        boxB =  box[1:]
+                        boxB =  boxes[idx][1:]
                         aX1 = int(boxA[0])
                         aX2 = int(boxA[2])
                         aY1 = int(boxA[1])
@@ -57,11 +59,12 @@ def NMS(boxes):
                         # return the intersection over union value
                         return iou
 
-                ious = np.apply_along_axis(IOU,1,boxes[i+1:,:])
+                ious = np.apply_along_axis(IOU,1,boxes[idx+1:,:])
                 for iouidx, iou in enumerate(ious):
                         if iou > IOUTHRESH:
-                                boxes[i+iouidx] = np.asarray([MAXCONF,0,0,0,0])
+                                boxes[idx+iouidx+1] = np.asarray([MAXCONF,0,0,0,0])
                                 numboxesremoved += 1
+                idx += 1
         boxes  = boxes[boxes[:,0].argsort()]
         if numboxesremoved == 0:
                 return boxes
@@ -75,32 +78,27 @@ def adjBB(BB,shift):
 # returns a compiled model
 # identical to the previous one
 def runframe(model,frame,wsize):
+        sw = Stopwatch()
+        sw.start("start")
         maxX = frame.shape[1]
         maxY = frame.shape[2]
-        data = np.ones((int((maxX-wsize)/STEP) ,int((maxY-wsize)/STEP) ))
+        data = np.ones((int((maxX-wsize)/STEP) + 1,int((maxY-wsize)/STEP) + 1))
         framebuffer = np.ones(((data.shape[0]) * (data.shape[1] ),wsize,wsize,frame.shape[3]))
         yistep = data.shape[0]
-        #cv2.imshow("Frame",frame[0,:,:,:])
-        #cv2.waitKey(0)
-        for yi,y in enumerate(range(0,maxY - wsize - STEP + 1,STEP)):
-                for xi,x in enumerate(range(0,maxX - wsize - STEP + 1,STEP)):
+        sw.lap("genwindows")
+        for yi,y in enumerate(range(0,maxY - wsize + 1,STEP)):
+                for xi,x in enumerate(range(0,maxX - wsize + 1,STEP)):
                         lowwindx = x
                         lowwindy = y
                         maxwindx = x + wsize
                         maxwindy = y + wsize
-                        #print (xi,yi), data.shape, (x,y),frame.shape
                         framebuffer[yi*yistep + xi] = frame[:,lowwindx:maxwindx,lowwindy:maxwindy,:]
-                        if lowwindy == 2020 and lowwindx == 1468:
-                                print xi,yi
-                                si = 12
-                                cv2.imshow("Myface",frame[0,lowwindx:lowwindx + si,lowwindy:lowwindy + si,:])
-                                fframe = pyramid_reduce(frame[0,lowwindx:lowwindx + si,lowwindy:lowwindy + si,:],downscale=int(si/12))
-                                fframe = fframe[np.newaxis,:]
-                                fframe = fframe[:,:12,:12,:]
-                                print model.predict(fframe)
-                                cv2.waitKey(0)
-        for idx,conf in enumerate(model.predict(framebuffer)):
+        sw.lap("runmodel")
+        out = model.predict(framebuffer)
+        sw.lap("loop")
+        for idx,conf in enumerate(out):
                 data[idx%yistep, int(idx/yistep)] = conf
+        sw.stop()
         return data
 
 def predToShift(prediction,thresh=CALIB12THRESH):
