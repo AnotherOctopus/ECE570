@@ -1,4 +1,5 @@
 from keras.layers import Input, Conv2D, Activation, MaxPooling2D,Flatten,Dense
+from keras.layers import BatchNormalization
 from keras.models import Model, load_model
 from keras.preprocessing.image import ImageDataGenerator
 from keras.metrics import categorical_accuracy
@@ -12,10 +13,14 @@ class calib12(object):
             ## build model
             inp = Input(shape=(12,12,3),dtype='float32')
             x = Conv2D(16, (3, 3), strides = 1,padding="same")(inp)
+            x = BatchNormalization()(x)
+            x = Activation("relu")(x)
+            x = Conv2D(32, (3, 3), strides = 1,padding="same")(inp)
+            x = BatchNormalization()(x)
             x = Activation("relu")(x)
             x = MaxPooling2D(pool_size=(3,3),strides=2)(x)
             x = Flatten()(x)
-            x = Dense(128)(x)
+            x = Dense(256)(x)
             x = Activation("relu")(x)
             x = Dense(45)(x)
             x = Activation("relu")(x)
@@ -28,8 +33,9 @@ class calib12(object):
     def compile(self):
 
             self.model.compile(loss='binary_crossentropy',
-                        optimizer=SGD(
-                                lr=0.0001
+                        optimizer=Adam(
+                                lr=0.01,
+                                clipnorm=1.0
                         ),
                         metrics=[categorical_accuracy])
     def train(self,saveas,train_data_dir,validation_data_dir,tags=["face","notface"]):
@@ -38,7 +44,7 @@ class calib12(object):
         img_width, img_height = 12,12
         nb_train_samples = len(os.listdir(os.path.join(train_data_dir,tags[0])))
         nb_validation_samples = len(os.listdir(os.path.join(validation_data_dir,tags[0])))
-        n_epochs = 100
+        n_epochs = 200
         if K.image_data_format() == 'channels_first':
             input_shape = (3, img_width, img_height)
         else:
@@ -70,7 +76,7 @@ class calib12(object):
         return hist
 
     def test(self,testfile,validfile):
-            model = load_model('calib12.h5')
+            model = load_model('handcalib12.h5')
             rawimg = imread(testfile,mode='RGB').astype(np.float32)/255
             rawimg = rawimg[np.newaxis,...]
 

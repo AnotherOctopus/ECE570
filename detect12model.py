@@ -33,7 +33,7 @@ class detect12(object):
         # data
         nb_train_samples = len(os.listdir(os.path.join(train_data_dir,tags[0]))) + len(os.listdir(os.path.join(train_data_dir,tags[1])))
         nb_validation_samples = len(os.listdir(os.path.join(validation_data_dir,tags[0]))) + len(os.listdir(os.path.join(validation_data_dir,tags[1])))
-        n_epochs = 50
+        n_epochs = 7
         batch_size = 128
 
         if K.image_data_format() == 'channels_first':
@@ -78,5 +78,5 @@ class detect12(object):
             print predictions
 if __name__ == "__main__":
     d12 = detect12()
-    d12.test("facedetect12.h5","/home/cephalopodoverlord/DroneProject/Charles570/ECE570/data/faces/detect12/train/notface/6.jpg")
+    d12.test("facedetect12.h5","/home/cephalopodoverlord/DroneProject/Charles570/ECE570/data/faces/detect12/train/face/6.jpg")
     # face is 0

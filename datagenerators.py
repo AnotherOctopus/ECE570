@@ -13,34 +13,47 @@ import numpy as np
 from random import shuffle
 from datagenerators import *
 def prepnet24data(datadir,tag= ["face","notface"]):
-    numsamples = len(os.listdir(os.path.join(datadir,tag[0]))) + len(os.listdir(os.path.join(datadir, tag[1])))
+    numsamples = len(os.listdir(os.path.join(datadir,tag[0]))) + len(os.listdir(os.path.join(datadir, tag[1])))/2
     imgs24 = np.empty((numsamples,24,24,3),dtype=np.float32)
     imgs12 = np.empty((numsamples,12,12,3),dtype=np.float32)
     labels = np.empty((numsamples,1),dtype=np.float32)
-    alldatafiles = [os.path.join(datadir,tag[0],f) for f in os.listdir(os.path.join(datadir,tag[0]))] + [os.path.join(datadir,tag[1],f) for f in os.listdir(os.path.join(datadir,tag[1]))]
+    alldatafiles = [os.path.join(datadir,tag[0],f) for f in os.listdir(os.path.join(datadir,tag[0]))] + [os.path.join(datadir,tag[1],f) for f in os.listdir(os.path.join(datadir,tag[1])) if "24-" in f]
     shuffle(alldatafiles)
     for idx, img in enumerate(alldatafiles):
         frame = imread(img)
-        imgs24[idx,:,:,:] = frame
-        imgs12[idx,:,:,:] = np.asarray(pyramid_reduce(frame,downscale=2))
+        if tag[1] in img:
+            imgs24[idx,:,:,:] = frame
+            frame = imread(img.replace("24-","12-"))
+            imgs12[idx,:,:,:] = frame 
+        else:
+            img24 = frame
+            imgs12[idx,:,:,:] = np.asarray(pyramid_reduce(frame,downscale=2))
+
         if tag[1] in img:
             labels[idx] = 0
         else:
             labels[idx] = 1
     return imgs24, imgs12, labels
 def prepnet48data(datadir, tag= ["face","notface"]):
-    numsamples = len(os.listdir(os.path.join(datadir,tag[0]))) + len(os.listdir(os.path.join(datadir, tag[1])))
+    numsamples = len(os.listdir(os.path.join(datadir,tag[0]))) + len(os.listdir(os.path.join(datadir, tag[1])))/3
     imgs48 = np.empty((numsamples,48,48,3),dtype=np.float32)
     imgs24 = np.empty((numsamples,24,24,3),dtype=np.float32)
     imgs12 = np.empty((numsamples,12,12,3),dtype=np.float32)
     labels = np.empty((numsamples,1),dtype=np.float32)
-    alldatafiles = [os.path.join(datadir,tag[0],f) for f in os.listdir(os.path.join(datadir,tag[0]))] + [os.path.join(datadir,tag[1],f) for f in os.listdir(os.path.join(datadir,tag[1]))]
+    alldatafiles = [os.path.join(datadir,tag[0],f) for f in os.listdir(os.path.join(datadir,tag[0]))] + [os.path.join(datadir,tag[1],f) for f in os.listdir(os.path.join(datadir,tag[1])) if "24-" in f ]
     shuffle(alldatafiles)
     for idx, img in enumerate(alldatafiles):
         frame = imread(img)
-        imgs48[idx,:,:,:] = frame
-        imgs24[idx,:,:,:] = np.asarray(np.asarray(pyramid_reduce(frame,downscale=2)))
-        imgs12[idx,:,:,:] = np.asarray(np.asarray(pyramid_reduce(frame,downscale=4)))
+        if tag[1] in img:
+            imgs24[idx,:,:,:] = frame
+            frame = imread(img.replace("48-","24-"))
+            imgs24[idx,:,:,:] = frame
+            frame = imread(img.replace("24-","12-"))
+            imgs12[idx,:,:,:] = frame 
+        else:
+            imgs48[idx,:,:,:] = frame
+            imgs24[idx,:,:,:] = np.asarray(np.asarray(pyramid_reduce(frame,downscale=2)))
+            imgs12[idx,:,:,:] = np.asarray(np.asarray(pyramid_reduce(frame,downscale=4)))
         if tag[1] in img:
             labels[idx] = 0
         else:

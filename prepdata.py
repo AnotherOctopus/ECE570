@@ -4,6 +4,7 @@ import numpy as np
 import os
 import cv2
 from scipy.misc import imread,imsave
+from detect12model import detect12
 from skimage.transform import pyramid_reduce
 from config import *
 from utils import *
@@ -346,6 +347,224 @@ def prephandcalib(datadir, trainvalidratio=10,size=12,startid = 0):
                                 imsave(hand['filename'],img)
                                 print(size,"calib: ",hand)
                                 imcnt += 1
+def prepbackground24(numface, datadir, trainvalidratio=10,startid = 0):
+        traindir = datadir + "train/"
+        validdir = datadir + "validation/"
+        backgroundfeeddir = datasetdir + "classroombackround/"
+        bkgroundimgs = os.listdir(backgroundfeeddir)
+        detect12model = load_model('facedetect12.h5')
+        calib12model  = load_model('facecalib12.h5')
+        imgnum = 0
+        for i in range(len(bkgroundimgs)):
+                backimg = bkgroundimgs[i]
+                rawimg = imread(os.path.join(backgroundfeeddir,backimg))
+                # Generate the first batch of confidences
+                scale = 1.0001
+                scalestep = 0.10
+                confidences = []
+                print backimg
+                while True: 
+                        frame = pyramid_reduce(rawimg,downscale=scale*float(MINFACE)/L1SIZE)
+                        print frame.shape
+                        if frame.shape[0] < L1SIZE and frame.shape[1] < L1SIZE:
+                                break
+                        brawimg = np.reshape(frame,(1,frame.shape[0],frame.shape[1],3))
+                        confidence = {
+                                "confmap":None, # Map of confidences on the map space
+                                "scale":1, # how much to upcale the image to reach original shape
+                                "frame":brawimg, # The downscaled image
+                                "boxes":[] # Boxes. (confidence,minX,minY,maxX,maxY)
+                        }
+
+
+                        confidence["confmap"] =  runframe(detect12model,brawimg,L1SIZE)
+                        confidence["scale"] =  float(rawimg.shape[0])/frame.shape[0]
+                        confToPos = lambda x: (x*STEP)
+
+                        threshedboxes = (confidence["confmap"] < DETECT12THRESH).nonzero()
+                        confidence["boxes"] = np.zeros((len(threshedboxes[0]),5),dtype=np.uint32)
+                        for i, box in enumerate(threshedboxes[0]):
+                                xidx = threshedboxes[0][i]
+                                yidx = threshedboxes[1][i]
+                                conf = int(confidence['confmap'][xidx][yidx]*MAXCONF)
+                                X = int(confToPos(xidx))
+                                Y = int(confToPos(yidx))
+                                confidence["boxes"][i] = np.asarray([conf,X,Y,X+L1SIZE,Y+L1SIZE])
+                        confidence["boxes"]  = confidence["boxes"][confidence["boxes"][:,0].argsort()]
+
+                        confidences.append(confidence)
+                        scale += scale*scale*scalestep
+
+                drawall("12net prenms",rawimg,confidences)
+                for confidence in confidences:
+                        for idx, box in enumerate(confidence["boxes"]):
+                                shift = calib12model.predict(confidence["frame"][:,box[1]:box[3],box[2]:box[4],:])[0]
+                                shift = predToShift(shift, thresh = CALIB12THRESH)
+                                confidence["boxes"][idx] = adjBB(box,shift)
+
+                for confidence in confidences:
+                        confidence["boxes"]  = confidence["boxes"][confidence["boxes"][:,0].argsort()]
+                        confidence["boxes"] = NMS(confidence["boxes"])
+                for confidence in confidences:
+                        scale = confidence["scale"]
+                        numremoved = 0
+                        for idx, box in enumerate(confidence["boxes"]):
+                                X1 = int(box[1]*scale)
+                                Y1 = int(box[2]*scale)
+                                X2 = int(box[3]*scale)
+                                Y2 = int(box[4]*scale)
+                                notface = {}
+                                wind12 = resizetoshape(rawimg[X1:X2,Y1:Y2,:],(L1SIZE,L1SIZE))
+                                wind24 = resizetoshape(rawimg[X1:X2,Y1:Y2,:],(L2SIZE,L2SIZE))
+                                notface['id'] = imgnum
+                                imgnum += 1
+                                notface['filename'] = os.path.join(backgroundfeeddir,backimg)
+                                if notface['id']%trainvalidratio == 0:
+                                        notface['filename'] = os.path.join(validdir,"notface","24-{}.jpg".format(notface['id']))
+                                else:
+                                        notface['filename'] = os.path.join(traindir,"notface","24-{}.jpg".format(notface['id']))
+
+                                imsave(notface['filename'],wind24[0,:,:,:])
+                                if notface['id']%trainvalidratio == 0:
+                                        notface['filename'] = os.path.join(validdir,"notface","12-{}.jpg".format(notface['id']))
+                                else:
+                                        notface['filename'] = os.path.join(traindir,"notface","12-{}.jpg".format(notface['id']))
+
+                                imsave(notface['filename'],wind12[0,:,:,:])
+                                print(24,"detect-notface",notface)
+
+def prepbackground48(numface, datadir, trainvalidratio=10,startid = 0):
+        traindir = datadir + "train/"
+        validdir = datadir + "validation/"
+        backgroundfeeddir = datasetdir + "classroombackround/"
+        bkgroundimgs = os.listdir(backgroundfeeddir)
+        detect12model = load_model('facedetect12.h5')
+        detect24model = load_model('facedetect24.h5')
+        calib12model  = load_model('facecalib12.h5')
+        calib24model  = load_model('facecalib24.h5')
+        imgnum = 0
+        for i in range(len(bkgroundimgs)):
+                backimg = bkgroundimgs[i]
+                rawimg = imread(os.path.join(backgroundfeeddir,backimg))
+                # Generate the first batch of confidences
+                scale = 1.0001
+                scalestep = 0.10
+                confidences = []
+                print backimg
+                while True: 
+                        frame = pyramid_reduce(rawimg,downscale=scale*float(MINFACE)/L1SIZE)
+                        print frame.shape
+                        if frame.shape[0] < L1SIZE and frame.shape[1] < L1SIZE:
+                                break
+                        brawimg = np.reshape(frame,(1,frame.shape[0],frame.shape[1],3))
+                        confidence = {
+                                "confmap":None, # Map of confidences on the map space
+                                "scale":1, # how much to upcale the image to reach original shape
+                                "frame":brawimg, # The downscaled image
+                                "boxes":[] # Boxes. (confidence,minX,minY,maxX,maxY)
+                        }
+
+
+                        confidence["confmap"] =  runframe(detect12model,brawimg,L1SIZE)
+                        confidence["scale"] =  float(rawimg.shape[0])/frame.shape[0]
+                        confToPos = lambda x: (x*STEP)
+
+                        threshedboxes = (confidence["confmap"] < DETECT12THRESH).nonzero()
+                        confidence["boxes"] = np.zeros((len(threshedboxes[0]),5),dtype=np.uint32)
+                        for i, box in enumerate(threshedboxes[0]):
+                                xidx = threshedboxes[0][i]
+                                yidx = threshedboxes[1][i]
+                                conf = int(confidence['confmap'][xidx][yidx]*MAXCONF)
+                                X = int(confToPos(xidx))
+                                Y = int(confToPos(yidx))
+                                confidence["boxes"][i] = np.asarray([conf,X,Y,X+L1SIZE,Y+L1SIZE])
+                        confidence["boxes"]  = confidence["boxes"][confidence["boxes"][:,0].argsort()]
+
+                        confidences.append(confidence)
+                        scale += scale*scale*scalestep
+
+                drawall("12net prenms",rawimg,confidences)
+                for confidence in confidences:
+                        for idx, box in enumerate(confidence["boxes"]):
+                                shift = calib12model.predict(confidence["frame"][:,box[1]:box[3],box[2]:box[4],:])[0]
+                                shift = predToShift(shift, thresh = CALIB12THRESH)
+                                confidence["boxes"][idx] = adjBB(box,shift)
+
+                for confidence in confidences:
+                        confidence["boxes"]  = confidence["boxes"][confidence["boxes"][:,0].argsort()]
+                        confidence["boxes"] = NMS(confidence["boxes"])
+                for confidence in confidences:
+                        scale = confidence["scale"]
+                        numremoved = 0
+                        for idx, box in enumerate(confidence["boxes"]):
+                                X1 = int(box[1]*scale)
+                                Y1 = int(box[2]*scale)
+                                X2 = int(box[3]*scale)
+                                Y2 = int(box[4]*scale)
+                                wind12 = resizetoshape(rawimg[X1:X2,Y1:Y2,:],(L1SIZE,L1SIZE))
+                                wind24 = resizetoshape(rawimg[X1:X2,Y1:Y2,:],(L2SIZE,L2SIZE))
+                                conf = detect24model.predict([wind24,wind12])[0][0]
+                                if conf < DETECT24THRESH:
+                                        confidence["boxes"][idx][0] = (1-conf)*MAXCONF
+                                else:
+                                        confidence["boxes"][idx][0] = MAXCONF
+                                        numremoved += 1
+                        if numremoved == 0:
+                                continue
+                        confidence["boxes"] = confidence["boxes"][confidence["boxes"][:,0].argsort()]
+                        confidence["boxes"] = confidence["boxes"][:-numremoved]
+
+                for confidence in confidences:
+                        scale = confidence["scale"]
+                        for idx, box in enumerate(confidence["boxes"]):
+                                X1 = int(box[1]*scale)
+                                Y1 = int(box[2]*scale)
+                                X2 = int(box[3]*scale)
+                                Y2 = int(box[4]*scale)
+                                wind = resizetoshape(rawimg[X1:X2,Y1:Y2,:],(L2SIZE,L2SIZE))
+                                shift = calib24model.predict(wind)[0]
+                                confidence["boxes"][idx] = adjBB(box,predToShift(shift,thresh = CALIB24THRESH))
+
+                for confidence in confidences:
+                        confidence["boxes"] = NMS(confidence["boxes"])
+
+                for confidence in confidences:
+                        scale = confidence["scale"]
+                        numremoved = 0
+                        for idx, box in enumerate(confidence["boxes"]):
+                                X1 = int(box[1]*scale)
+                                Y1 = int(box[2]*scale)
+                                X2 = int(box[3]*scale)
+                                Y2 = int(box[4]*scale)
+                                notface = {}
+                                wind12 = resizetoshape(rawimg[X1:X2,Y1:Y2,:],(L1SIZE,L1SIZE))
+                                wind24 = resizetoshape(rawimg[X1:X2,Y1:Y2,:],(L2SIZE,L2SIZE))
+                                wind48 = resizetoshape(rawimg[X1:X2,Y1:Y2,:],(L3SIZE,L3SIZE))
+                                notface['id'] = imgnum
+                                imgnum += 1
+                                notface['filename'] = os.path.join(backgroundfeeddir,backimg)
+                                if notface['id']%trainvalidratio == 0:
+                                        notface['filename'] = os.path.join(validdir,"notface","48-{}.jpg".format(notface['id']))
+                                else:
+                                        notface['filename'] = os.path.join(traindir,"notface","48-{}.jpg".format(notface['id']))
+
+                                imsave(notface['filename'],wind48[0,:,:,:])
+
+                                if notface['id']%trainvalidratio == 0:
+                                        notface['filename'] = os.path.join(validdir,"notface","24-{}.jpg".format(notface['id']))
+                                else:
+                                        notface['filename'] = os.path.join(traindir,"notface","24-{}.jpg".format(notface['id']))
+
+                                imsave(notface['filename'],wind24[0,:,:,:])
+
+                                if notface['id']%trainvalidratio == 0:
+                                        notface['filename'] = os.path.join(validdir,"notface","12-{}.jpg".format(notface['id']))
+                                else:
+                                        notface['filename'] = os.path.join(traindir,"notface","12-{}.jpg".format(notface['id']))
+
+                                imsave(notface['filename'],wind12[0,:,:,:])
+                                print(48,"detect-notface",notface)
+
 def prepcalib(numface, datadir, trainvalidratio=10,size=12,startid = 0):
         traindir = datadir + "train/"
         validdir = datadir + "validation/"
@@ -392,10 +611,12 @@ def prepcalib(numface, datadir, trainvalidratio=10,size=12,startid = 0):
                 print(size,"calib: ",face)
                 i += 1
 if __name__ == "__main__":
-        #prepdetect(4000,"data/faces/detect48/",trainvalidratio = 4,size = 48,startid=4000)
+        #prepdetect(4000,"data/faces/detect48/",trainvalidratio = 4,size = 48,startid=0)
         #prepdetect(4000,"data/faces/detect24/",trainvalidratio = 4,size = 24)
         #prepdetect(4000,"data/faces/detect12/",trainvalidratio = 4,size = 12,startid=4000)
-        prepbackground(10000,"data/faces/detect48/",trainvalidratio = 4,size = 48)
+        #prepbackground(10000,"data/faces/detect48/",trainvalidratio = 4,size = 48)
+        #prepbackground24(10, "data/faces/detect24/", trainvalidratio=10,startid = 0)
+        prepbackground48(10, "data/faces/detect48/", trainvalidratio=10,startid = 0)
         #prepbackground(3000,"data/faces/detect24/",trainvalidratio = 4,size = 24)
         #prepbackground(10000,"data/faces/detect12/",trainvalidratio = 4,size = 12,startid=3000)
         #prepcalib(4000,"data/faces/adj48/",trainvalidratio = 4,size=48)

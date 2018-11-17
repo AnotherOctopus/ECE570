@@ -65,11 +65,12 @@ def NMS(boxes):
                                 boxes[idx+iouidx+1] = np.asarray([MAXCONF,0,0,0,0])
                                 numboxesremoved += 1
                 idx += 1
-        boxes  = boxes[boxes[:,0].argsort()]
+                boxes  = boxes[boxes[:,0].argsort()]
         if numboxesremoved == 0:
                 return boxes
         return boxes[:-numboxesremoved]
 def adjBB(BB,shift):
+        
         actW = int(shift[0]*(BB[3] - BB[1]))
         actH = int(shift[0]*(BB[4] - BB[2]))
         actX = BB[1] + int(shift[1]*actW/shift[0])
@@ -140,6 +141,7 @@ def drawfinal(name,rawimg,boxes,color=(255,0,0)):
                         pass
         final = pyramid_reduce(final,downscale=4)
         cv2.imshow(name,final)
+        cv2.imwrite("docimgs/{}.png".format(name),final*255)
 def drawall(name,rawimg,confidences,drawscale = False,scaleup = True,color = (255,0,0)):
         if not DISPLAY:
                 return
@@ -169,6 +171,7 @@ def drawall(name,rawimg,confidences,drawscale = False,scaleup = True,color = (25
                         imageatscale = pyramid_reduce(imageatscale,downscale=4)
                         cv2.imshow("{} - Scale{}".format(name,scale),imageatscale)
         final = pyramid_reduce(final,downscale=4)
+        cv2.imwrite("docimgs/{}.png".format(name),final*255)
         cv2.imshow("{} - final".format(name),final)
 def resizetoshape(img,wind):
         wind = wind[0]

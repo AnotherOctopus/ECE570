@@ -62,7 +62,7 @@ class detect48(object):
         # data
         nb_train_data_dir = len(os.listdir(os.path.join(train_data_dir,tags[0]))) + len(os.listdir(os.path.join(train_data_dir,tags[1])))
         nb_valid_dir = len(os.listdir(os.path.join(valid_data_dir,tags[0]))) + len(os.listdir(os.path.join(valid_data_dir,tags[1])))
-        n_epochs = 30
+        n_epochs = 5
         batch_size = 128
 
         if K.image_data_format() == 'channels_first':
@@ -121,8 +121,7 @@ class detect48(object):
             predictions =  model.predict([rawimg,wind24,wind12])
             print predictions
 
-            model = load_model('net12.h5')
 if __name__ == "__main__":
     d48 = detect48()
-    d48.test("/home/cephalopodoverlord/DroneProject/Charles570/ECE570/data/detect48/train/notface/2.jpg")
+    d48.test("/home/cephalopodoverlord/DroneProject/Charles570/ECE570/data/detect48/train/notface/5.jpg")
     #FACE IS 1

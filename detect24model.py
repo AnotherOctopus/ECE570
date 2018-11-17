@@ -54,7 +54,7 @@ class detect24(object):
         # data
         nb_train_data_dir = len(os.listdir(os.path.join(train_data_dir,tags[0]))) + len(os.listdir(os.path.join(train_data_dir,tags[1])))
         nb_valid_data_dir = len(os.listdir(os.path.join(valid_data_dir,tags[0]))) + len(os.listdir(os.path.join(valid_data_dir,tags[1])))
-        n_epochs = 50
+        n_epochs = 5
         batch_size = 128
 
         if K.image_data_format() == 'channels_first':
